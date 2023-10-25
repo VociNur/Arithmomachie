@@ -14,6 +14,10 @@ formes:
 - 3: carré
 - 4: pyramide
 
-équipe:
+équipes:
 - 0: blanche
 - 1: noire
+
+Attaque:
+- (y,x) pour normale
+- (y,x,n) pour attaque d’un étage de pyramide
