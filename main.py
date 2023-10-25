@@ -294,15 +294,15 @@ class Game:
         for a in attack:
             (y,x) = a
             self.board[y][x] = (-1, -1, -1)
-            print("paf")
+            #print("paf")
         for p in partial_attack: #on attaque celle de l’adversaire donc 1-player_turn
             (y,x,n) = p
             i = np.where(self.pyramid[1-self.player_turn] == n)[0]
-            print_file("paf",[self.board[y][x], p])
+            #print_file("paf",[self.board[y][x], p])
             self.pyramid[1-self.player_turn][i] = -1
             self.board[y][x][0] -= n
 
-            print_file("paf", ["-->",  self.board[y][x], self.pyramid[1-self.player_turn]])
+            #print_file("paf", ["-->",  self.board[y][x], self.pyramid[1-self.player_turn]])
 
 
     def __init__(self):
