@@ -18,13 +18,18 @@ white = np.array([
 values = np.concatenate((bord, black, mid, white, bord))
 
 # rond = 1, triangle = 2, carré = 3, pyramide = 4
-forms = np.array([
+white_forms = np.array([
     [n, n, 1, 1, 1, 1, n, n],
     [2, 2, 1, 1, 1, 1, 2, 2],
     [3, 4, 2, 2, 2, 2, 3, 3],
     [3, 3, n, n, n, n, 3, 3]
 ])
-
+black_forms = np.array([
+    [n, n, 1, 1, 1, 1, n, n],
+    [2, 2, 1, 1, 1, 1, 2, 2],
+    [4, 3, 2, 2, 2, 2, 3, 3],
+    [3, 3, n, n, n, n, 3, 3]
+])
 print(values)
 print(white)
 print(black)
@@ -41,9 +46,9 @@ for y in range(16):
     for x in range(8):
         if values[y][x] != n:
             if 2 <= y < 6:
-                board[y][x] = np.array((values[y][x], forms[5-y][7-x], 1))
+                board[y][x] = np.array((values[y][x], black_forms[5-y][7-x], 1))
             elif 10 <= y < 14:
-                board[y][x] = np.array((values[y][x], forms[y-10][x], 0))
+                board[y][x] = np.array((values[y][x], white_forms[y-10][x], 0))
 
         else:
             board[y][x] = n
