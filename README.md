@@ -1,7 +1,8 @@
 # Arithmomachie
 
 Règles: https://drive.google.com/file/d/1rz2AM8FDiBt7dB0C5X6SQ7fvUQAURm1B
-Venant de https://rithmomachiaucv.blogspot.com/
+En simplifiée: https://drive.google.com/file/d/1SgY8qkFf8sJHgbqr3B12VM-TsnSlt0Nh/view
+venant de https://rithmomachiaucv.blogspot.com/
 
 Représentation:
 pions: (valeur, forme, équipe)
