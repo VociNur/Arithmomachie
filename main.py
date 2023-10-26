@@ -12,15 +12,40 @@ def print_board(board):
     for y in range(16):
         print(y, board[y], ",")
 
-def clear_file(f:str):
-    with open(f+".txt", "w"):
+
+def clear_file(f: str):
+    with open(f + ".txt", "w"):
         pass
-def print_file(f:str, args):
+
+
+def print_file(f: str, args):
     arg = ""
     for a in args:
         arg += " " + str(a)
-    with open(f+".txt", "a") as myfile:
-        myfile.write(arg + "\n")
+    with open(f + ".txt", "a") as file:
+        file.write(arg + "\n")
+
+
+def is_power_or_root(a, b):
+    if a == b:
+        return True
+    elif a == 1 or b == 1:
+        return False
+    return (math.log(b) / math.log(a)).is_integer() or (math.log(a) / math.log(b)).is_integer()
+
+
+def a_is_equation(a, b, c):
+    return a + b == c \
+        or abs(a - b) == c \
+        or a * b == c \
+        or a / b == c \
+        or b / a == c
+
+
+def add_attacks(l1: list, l2: list, p: (list, list)):
+    p1, p2 = p
+    return l1 + p1, l2 + p2
+
 
 class Game:
     # Permet de visualiser le jeu à la fin de la partie
@@ -57,7 +82,8 @@ class Game:
         self.board[y][x] = (side, form, value)
 
     def init_board(self):
-        f = open("game.json", "r")
+        pre = "./boards/"
+        f = open(pre + "game.json", "r")
         self.board = np.array(json.loads(f.read()))
         f.close()
 
@@ -138,10 +164,10 @@ class Game:
         return available_moves
 
     # récupère tous les mouvements possibles dans un état
-    # Pour chaque cases, si elle n’est pas vide, on récupère les mouvements régulier et irrégulier
+    # Pour chaque case, si elle n’est pas vide, on récupère les mouvements régulier et irrégulier
     def get_game_available_moves(self):
         available_moves = []  # 1 move = 2 couples (y, x)
-        # pour toutes les cases non vide, on ajoute ses coups possible dans la liste des coups
+        # pour toutes les cases non vide, on ajoute ses coups possibles dans la liste des coups
         for y in range(16):
             for x in range(8):
                 if self.is_empty(y, x):
@@ -152,7 +178,7 @@ class Game:
                     available_moves += self.get_pawn_available_irregular_moves((value, form, team), y, x)
         return available_moves
 
-    # permet de délpacer une pièce
+    # permet de déplacer une pièce
     def move(self, move):
         ((y, x), (dy, dx)) = move
         self.board[y + dy][x + dx] = self.board[y][x]
@@ -162,7 +188,7 @@ class Game:
         self.turn += 1
         self.player_turn = (self.player_turn + 1) % 2
 
-    # copier coller de get_pawn_available_moves mais on veut un pion dans les coins
+    # copier-coller de get_pawn_available_moves mais on veut un pion dans les coins
     def get_pawn_melee_attacks(self, pawn, j, i):
         available_attacks = []
         (value, form, team) = pawn
@@ -243,67 +269,205 @@ class Game:
                 if team != self.player_turn:
                     continue
                 for attack in self.get_pawn_melee_attacks((value, form, team), y, x):
-                    #print("attack", attack, value)
+                    # print("attack", attack, value)
                     attack_board[attack[0]][attack[1]].append(value)
 
         return attack_board
 
-    def get_melee_attack(self):
-        attacked = []
-        partial_attack = []
+    # Gère les attaques et attaques partielles sur une pyramide
+    def equations_attacks(self, y, x, a: int,
+                          b: int):  # a et b sont des pseudos-attaquants, utilisé lors d’attaque en assaut
+        total_attacks = []
+        partial_attacks = []
+        if a_is_equation(self.board[y][x][0], a, b):
+            total_attacks.append((y, x))
+        if self.board[y][x][1] == 4:  # le retour de l’ennui
+            for n in self.pyramid[1 - self.player_turn]:  # si elle appartient à l’ennemi
+                if a_is_equation(n, a, b):
+                    partial_attacks.append((y, x, n))
+        return total_attacks, partial_attacks
+
+    def get_melee_attacks(self):
+        total_attacks = []
+        partial_attacks = []
         attack_board = self.get_melee_attack_board()
         for y in range(16):
             for x in range(8):
                 attackers = attack_board[y][x]
                 # Rencontre et puissance
                 for a in attackers:
-                    #print("-->", self.board[y][x][0], a)
-                    if (math.log(self.board[y][x][0]) / math.log(a)).is_integer() or (
-                            math.log(a) / math.log(self.board[y][x][0])).is_integer():
-                        # print("démooooo rencontre ou pui", y, x, ":", self.board[y][x][0], "by", a)
-                        attacked.append((y, x))
+                    # print("-->", self.board[y][x][0], a)
+                    if is_power_or_root(self.board[y][x][0], a):
+                        total_attacks.append((y, x))
                 # Embuscade
                 for i in range(len(attackers)):
                     for j in range(i):
-                        if attackers[i] + attackers[j] == self.board[y][x][0] \
-                                or abs(attackers[i] - attackers[j]) == self.board[y][x][0] \
-                                or attackers[i] * attackers[j] == self.board[y][x][0] \
-                                or attackers[i] / attackers[j] == self.board[y][x][0] \
-                                or attackers[j] / attackers[i] == self.board[y][x][0]:
-                            # print("defouuuuu", y, x, ":", self.board[y][x][0], "by", attackers[i], attackers[j])
-                            attacked.append((y, x))
-                        if self.board[y][x][1] == 4: #le retour de l’ennuie
-                            for n in self.pyramid[1-self.player_turn]:  #si elle appartient à l’ennemi
-                                if attackers[i] + attackers[j] == n \
-                                        or abs(attackers[i] - attackers[j]) == n \
-                                        or attackers[i] * attackers[j] == n \
-                                        or attackers[i] / attackers[j] == n \
-                                        or attackers[j] / attackers[i] == n:
-                                    partial_attack.append((y, x, n))
+                        equa_attacks = self.equations_attacks(y, x, attackers[i], attackers[j])
+                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks, equa_attacks)
+        return total_attacks, partial_attacks
 
+    def get_assault_attacks(self): #Il y aurait moyen de réduire un peu la taille avec fonction auxiliaire, pas sûr...
+        # en ligne, en colonne, ou en diagonale
+        #print("-------------------")
+        total_attacks = []
+        partial_attacks = []
+        # 1. en ligne
+        for y in range(16):
+            none = [-1, -1, -1]
+            last_piece = none
+            last_x, last_y = -1, -1
+            espace = 0
+            for x in range(8):
+                if self.is_empty(y, x):
+                    espace += 1
+                    continue
+                if np.equal(last_piece, none).all():
+                    last_piece = self.board[y][x]
+                    last_y = y
+                    last_x = x
+                    espace = 0
+                    continue
+                # Dans ce cas, les deux pieces peuvent se toucher, de longueur i
+                # On vérifie si un de l’équipe qui joue, peut battre l’autre
+                # on l’attaque avec la pièce à nous et la distance qui les sépare
+                if espace > 1:
+                    if last_piece[2] == self.player_turn and self.board[y][x][2] != self.player_turn:
+                        equa_attacks = self.equations_attacks(y, x, last_piece[0], espace)
+                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks, equa_attacks)
 
-        return attacked, partial_attack
+                    if last_piece[2] != self.player_turn and self.board[y][x][2] == self.player_turn:
+                        equa_attacks = self.equations_attacks(last_y, last_x, self.board[y][x][0], espace)
+                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks, equa_attacks)
+                last_piece = self.board[y][x]
+                last_y = y
+                last_x = x
+                espace = 0
 
-    def get_game_available_attack(self):
-        melee_attack, partial_melee_attack = self.get_melee_attack()
+        # 2. en colonne (*on échange juste l’initialisation de x et y*)
+        for x in range(8):
+            none = [-1, -1, -1]
+            last_piece = none
+            last_x, last_y = -1, -1
+            espace = 0
+            for y in range(16):
+                if self.is_empty(y, x):
+                    espace += 1
+                    continue
+                if np.equal(last_piece, none).all():
+                    last_piece = self.board[y][x]
+                    last_y = y
+                    last_x = x
+                    espace = 0
+                    continue
+                if espace > 1:
+                    if last_piece[2] == self.player_turn and self.board[y][x][2] != self.player_turn:
+                        equa_attacks = self.equations_attacks(y, x, last_piece[0], espace)
+                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks,
+                                                                     equa_attacks)
 
-        attack, partial_attack = melee_attack, partial_melee_attack
+                    if last_piece[2] != self.player_turn and self.board[y][x][2] == self.player_turn:
+                        equa_attacks = self.equations_attacks(last_y, last_x, self.board[y][x][0], espace)
+                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks,
+                                                                     equa_attacks)
+                last_piece = self.board[y][x]
+                last_y = y
+                last_x = x
+                espace = 0
+
+        #3 diagonale descendante
+        for debut_ligne in range(-6, 15):
+            none = [-1, -1, -1]
+            last_piece = none
+            last_x, last_y = -1, -1
+            espace = 0
+            for i in range(8):
+                y= debut_ligne + i
+                x = i
+                if not self.in_board(y, x):
+                    continue
+                if self.is_empty(y, x):
+                    espace += 1
+                    continue
+                if np.equal(last_piece, none).all():
+                    last_piece = self.board[y][x]
+                    last_y = y
+                    last_x = x
+                    espace = 0
+                    continue
+                if espace > 1:
+                    if last_piece[2] == self.player_turn and self.board[y][x][2] != self.player_turn:
+                        equa_attacks = self.equations_attacks(y, x, last_piece[0], espace)
+                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks, equa_attacks)
+
+                    if last_piece[2] != self.player_turn and self.board[y][x][2] == self.player_turn:
+                        equa_attacks = self.equations_attacks(last_y, last_x, self.board[y][x][0], espace)
+                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks, equa_attacks)
+                last_piece = self.board[y][x]
+                last_y = y
+                last_x = x
+                espace = 0
+        # 4 diagonale ascendante
+        for debut_ligne in range(1, 22):
+            none = [-1, -1, -1]
+            last_piece = none
+            last_x, last_y = -1, -1
+            espace = 0
+            for i in range(8):
+                y = debut_ligne - i
+                x = i
+                if not self.in_board(y, x):
+                    continue
+                if self.is_empty(y, x):
+                    espace += 1
+                    continue
+                if np.equal(last_piece, none).all():
+                    last_piece = self.board[y][x]
+                    last_y = y
+                    last_x = x
+                    espace = 0
+                    continue
+                if espace > 1:
+                    if last_piece[2] == self.player_turn and self.board[y][x][2] != self.player_turn:
+                        equa_attacks = self.equations_attacks(y, x, last_piece[0], espace)
+                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks,
+                                                                     equa_attacks)
+
+                    if last_piece[2] != self.player_turn and self.board[y][x][2] == self.player_turn:
+                        equa_attacks = self.equations_attacks(last_y, last_x, self.board[y][x][0], espace)
+                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks,
+                                                                     equa_attacks)
+                last_piece = self.board[y][x]
+                last_y = y
+                last_x = x
+                espace = 0
+        return total_attacks, partial_attacks
+
+    def get_game_attacks(self):
+        melee_attacks, partial_melee_attacks = self.get_melee_attacks()
+        assault_attacks, partial_assault_attacks = self.get_assault_attacks()
+        #if assault_attacks or partial_assault_attacks:
+        #    print(assault_attacks, partial_assault_attacks)
+        #    print("nomdedieu c’est ok")
+        #    return [], []
+        attack, partial_attack = melee_attacks + assault_attacks, partial_melee_attacks + partial_assault_attacks
         return attack, partial_attack
 
     def kill(self, attack, partial_attack):
         for a in attack:
-            (y,x) = a
+            (y, x) = a
             self.board[y][x] = (-1, -1, -1)
-            #print("paf")
-        for p in partial_attack: #on attaque celle de l’adversaire donc 1-player_turn
-            (y,x,n) = p
-            i = np.where(self.pyramid[1-self.player_turn] == n)[0]
-            #print_file("paf",[self.board[y][x], p])
-            self.pyramid[1-self.player_turn][i] = -1
+            # print("paf")
+        for p in partial_attack:  # on attaque celle de l’adversaire donc 1-player_turn
+            (y, x, n) = p
+            i = np.where(self.pyramid[1 - self.player_turn] == n)[0]
+            # print_file("paf",[self.board[y][x], p])
+            self.pyramid[1 - self.player_turn][i] = -1
             self.board[y][x][0] -= n
 
-            #print_file("paf", ["-->",  self.board[y][x], self.pyramid[1-self.player_turn]])
+            if np.equal(self.pyramid[1 - self.player_turn], [-1, -1, -1, -1, -1, -1]).all():
+                self.board[y][x] = [-1, -1, -1]
 
+            # print_file("paf", ["-->",  self.board[y][x], self.pyramid[1-self.player_turn]])
 
     def __init__(self):
         self.board = []  # valeur forme, équipe
@@ -313,19 +477,21 @@ class Game:
         self.width = 8
         self.height = 16
         self.pyramid = np.array([[1, 4, 9, 16, 25, 36], [-1, 16, 25, 36, 49, 64]])
-
+        self.stop = False
         print("test")
         clear_file("paf")
 
         i = 0
-        for j in range(15000):
+        for j in range(5000):
+            if self.stop:
+                break
             coups = self.get_game_available_moves()
-            print(j, len(coups))
+            # print(j, len(coups))
             if len(coups) == 0:
                 break
             coup = coups[random.randint(0, len(coups) - 1)]
             self.move(coup)
-            attack, partial_attack = self.get_game_available_attack()
+            attack, partial_attack = self.get_game_attacks()
             self.kill(attack, partial_attack)
             self.end_turn()
 

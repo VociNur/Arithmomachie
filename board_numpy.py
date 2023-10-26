@@ -64,7 +64,7 @@ def print_board(board):
 
 print_board(b)
 
-f = open("game.json", "w")
+f = open("boards/game.json", "w")
 f.write(json.dumps(board.tolist()))
 f.close()
 ####################################################$$
@@ -73,13 +73,40 @@ board = np.full((16, 8, 3), 0)
 for y in range(16):
     for x in range(8):
         board[y][x] = n
-board[0, 0] = (1, 1, 0)
+for i in range(8):
+    board[0, i] = (i+1, 1, 0)
+for i in range(8):
+    board[1, i] = (i+1, 1, 1)
 board[3, 3] = (3, 1, 0)
 board[4, 4] = (4, 2, 0)
 board[5, 5] = (5, 3, 0)
 board[6, 6] = (6, 3, 0)
+board[8, 4] = (36, 3, 1)
+board[11, 2] = (24*3, 3, 0)
+board[11, 6] = (24, 3, 1)
+board[10, 6] = (18, 3, 1)
 
 
-f = open("basic.json", "w")
+f = open("./boards/basics1.json", "w")
+f.write(json.dumps(board.tolist()))
+f.close()
+
+board = np.full((16, 8, 3), 0)
+for y in range(16):
+    for x in range(8):
+        board[y][x] = n
+board[3, 3] = (3, 1, 0)
+board[4, 4] = (4, 2, 0)
+board[5, 5] = (5, 3, 0)
+board[6, 6] = (6, 3, 0)
+board[4, 3] = (16, 1, 0)
+board[1, 0] = (32, 1, 1)
+board[1, 6] = (18, 1, 1)
+board[7, 6] = (8, 2, 1)
+
+board[12, 0] = (1, 1, 0)
+board[15, 3] = (2, 1, 1)
+
+f = open("./boards/basics2.json", "w")
 f.write(json.dumps(board.tolist()))
 f.close()
