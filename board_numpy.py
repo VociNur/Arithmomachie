@@ -110,3 +110,27 @@ board[15, 3] = (2, 1, 1)
 f = open("./boards/basics2.json", "w")
 f.write(json.dumps(board.tolist()))
 f.close()
+
+board = np.full((16, 8, 3), 0)
+for y in range(16):
+    for x in range(8):
+        board[y][x] = n
+
+j, i = 3, 3
+board[j, i] = (100, 1, 1)
+board[j+1, i+1] = (1, 1, 0)
+board[j-1, i+1] = (1, 1, 0)
+board[j+1, i-1] = (1, 1, 0)
+board[j-1, i-1] = (1, 1, 0)
+
+j, i = 8, 3
+
+board[j, i] = (100, 1, 1)
+board[j+1, i+1] = (1, 1, 0)
+board[j-1, i+1] = (1, 1, 0)
+board[j+1, i-1] = (1, 1, 0)
+board[j-1, i-1] = (1, 1, 0)
+
+f = open("./boards/basics3.json", "w")
+f.write(json.dumps(board.tolist()))
+f.close()

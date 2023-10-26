@@ -83,7 +83,7 @@ class Game:
 
     def init_board(self):
         pre = "./boards/"
-        f = open(pre + "game.json", "r")
+        f = open(pre + "basics3.json", "r")
         self.board = np.array(json.loads(f.read()))
         f.close()
 
@@ -442,15 +442,24 @@ class Game:
                 espace = 0
         return total_attacks, partial_attacks
 
+    def get_siege_attacks(self):
+        total_attacks = []
+        for y in range(16):
+            for x in range(8):
+                if self.is_empty(y, x):
+                    continue
+                moves = self.get_pawn_available_regular_moves(self.board[y][x], y, x)
+                if len(moves) == 0:
+                    total_attacks.append((y, x))
+        return total_attacks
     def get_game_attacks(self):
         melee_attacks, partial_melee_attacks = self.get_melee_attacks()
         assault_attacks, partial_assault_attacks = self.get_assault_attacks()
-        #if assault_attacks or partial_assault_attacks:
-        #    print(assault_attacks, partial_assault_attacks)
-        #    print("nomdedieu c’est ok")
-        #    return [], []
-        attack, partial_attack = melee_attacks + assault_attacks, partial_melee_attacks + partial_assault_attacks
-        return attack, partial_attack
+        siege_attacks = self.get_siege_attacks()
+
+        attacks = melee_attacks + assault_attacks + siege_attacks
+        partial_attacks = partial_melee_attacks + partial_assault_attacks
+        return attacks, partial_attacks
 
     def kill(self, attack, partial_attack):
         for a in attack:
@@ -482,7 +491,7 @@ class Game:
         clear_file("paf")
 
         i = 0
-        for j in range(5000):
+        for j in range(1):
             if self.stop:
                 break
             coups = self.get_game_available_moves()
