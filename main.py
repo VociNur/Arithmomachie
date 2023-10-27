@@ -26,6 +26,7 @@ def print_file(f: str, args):
         file.write(arg + "\n")
 
 
+
 def is_power_or_root(a, b):
     if a == b:
         return True
@@ -83,7 +84,7 @@ class Game:
 
     def init_board(self):
         pre = "./boards/"
-        f = open(pre + "basics3.json", "r")
+        f = open(pre + "game.json", "r")
         self.board = np.array(json.loads(f.read()))
         f.close()
 
@@ -95,18 +96,24 @@ class Game:
     def is_empty(self, j, i):
         return np.equal(self.board[j][i], [-1, -1, -1]).all()
 
+    def add_historic(self, name: str, t1, t2):
+        if not self.historic:
+            return
+        with open("historic.txt", "a") as file:
+            file.write(name + ": " + str(t1) + str(t2) + "\n")
+
     # On récupère les mouvements réguliers, on doit vérifier que tout le trajet est libre
     def get_pawn_available_regular_moves(self, pawn, j, i):
         available_moves = []
         (value, form, team) = pawn
-        if form == 1 or (form == 4 and (self.pyramid[team][0] != -1 or self.pyramid[team][1] != -1)):  # c’est un rond
+        if form == 1 or (form == 4 and self.check_pyramid_form(team, 1)):  # c’est un rond
             relative_moves_circle = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
             for rm in relative_moves_circle:
                 dj, di = rm
                 if self.in_board(j + dj, i + di) and self.is_empty(j + dj, i + di):
                     available_moves += [((j, i), (dj, di))]
 
-        if form == 2 or (form == 4 and (self.pyramid[team][2] != -1 or self.pyramid[team][3] != -1)):
+        if form == 2 or (form == 4 and self.check_pyramid_form(team, 2)):
             r = 2
             # print(i, j)
             # print(np.equal(self.board[j-r:j, i], np.full((2, 3), -1)))
@@ -121,7 +128,7 @@ class Game:
             if self.in_board(j, i - r) and np.equal(self.board[j, i - r:i], np.full((r, 3), -1)).all():
                 available_moves += [((j, i), (0, -r))]
 
-        if form == 3 or (form == 4 and (self.pyramid[team][4] != -1 or self.pyramid[team][5] != -1)):
+        if form == 3 or (form == 4 and self.check_pyramid_form(team, 3)):
             r = 3
             if self.in_board(j + r, i) and np.equal(self.board[j + 1:j + r + 1, i], np.full((r, 3), -1)).all():
                 available_moves += [((j, i), (r, 0))]
@@ -139,7 +146,7 @@ class Game:
         available_moves = []
         (value, form, team) = pawn
         for u in [-1, 1]:  # décalage de 1
-            if form == 2 or form == 4:
+            if form == 2 or (form == 4 and self.check_pyramid_form(team, 2)):
                 r = 2
                 if self.in_board(j + r, i + u) and self.is_empty(j + r, i + u):
                     available_moves += [((j, i), (r, u))]
@@ -150,7 +157,7 @@ class Game:
                 if self.in_board(j + u, i - r) and self.is_empty(j + u, i - r):
                     available_moves += [((j, i), (u, -r))]
 
-            if form == 3 or form == 4:
+            if form == 3 or (form == 4 and self.check_pyramid_form(team, 3)):
                 r = 3
                 if self.in_board(j + r, i + u) and self.is_empty(j + r, i + u):
                     available_moves += [((j, i), (r, u))]
@@ -183,6 +190,7 @@ class Game:
         ((y, x), (dy, dx)) = move
         self.board[y + dy][x + dx] = self.board[y][x]
         self.board[y][x] = (-1, -1, -1)
+        self.last_move = (y + dy, x + dx)
 
     def end_turn(self):
         self.turn += 1
@@ -306,9 +314,9 @@ class Game:
                         total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks, equa_attacks)
         return total_attacks, partial_attacks
 
-    def get_assault_attacks(self): #Il y aurait moyen de réduire un peu la taille avec fonction auxiliaire, pas sûr...
+    def get_assault_attacks(self):  # Il y aurait moyen de réduire un peu la taille avec fonction auxiliaire, pas sûr...
         # en ligne, en colonne, ou en diagonale
-        #print("-------------------")
+        # print("-------------------")
         total_attacks = []
         partial_attacks = []
         # 1. en ligne
@@ -374,14 +382,14 @@ class Game:
                 last_x = x
                 espace = 0
 
-        #3 diagonale descendante
+        # 3 diagonale descendante
         for debut_ligne in range(-6, 15):
             none = [-1, -1, -1]
             last_piece = none
             last_x, last_y = -1, -1
             espace = 0
             for i in range(8):
-                y= debut_ligne + i
+                y = debut_ligne + i
                 x = i
                 if not self.in_board(y, x):
                     continue
@@ -442,20 +450,104 @@ class Game:
                 espace = 0
         return total_attacks, partial_attacks
 
+    def check_pyramid_form(self, team, form):
+        if form == 1:
+            return self.pyramid[team][0] != -1 or self.pyramid[team][1] != -1
+        if form == 2:
+            return self.pyramid[team][2] != -1 or self.pyramid[team][3] != -1
+        if form == 3:
+            return self.pyramid[team][4] != -1 or self.pyramid[team][5] != -1
+
+    def is_blocked_by_last_move(self, y, x):
+        print("test", y, x)
+        (value, form, team) = self.board[y][x]
+        last_y, last_x = self.last_move
+        print("last move", last_y, last_x)
+        if form == 1 or (form == 4 and self.check_pyramid_form(team, 1)):  # c’est un rond
+            relative_moves_circle = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
+            for rm in relative_moves_circle:
+                dy, dx = rm
+                if y + dy == last_y and x + dx == last_x:
+                    return True  # il a bien boucher un bout
+        for r in range(2, 4):
+            if form == r or (form == 4 and self.check_pyramid_form(team, r)):
+                if last_y == y and abs(last_x - x) <= r:
+                    # il pourrait boucher quelque chose
+                    if x > last_x:
+                        for delta in range(1, r + 1):
+                            if not self.in_board(y, x - delta):
+                                break
+                            #print("-->test21", y, delta, last_y)
+                            if self.is_empty(y, x - delta):
+                                continue
+                            if x - delta == last_x:
+                                return True
+                            #print("nop")
+                            break
+                    if x < last_x:
+                        for delta in range(1, r + 1):
+                            if not self.in_board(y, x + delta):
+                                break
+
+                            #print("-->test22", y, delta, last_y)
+                            if self.is_empty(y, x + delta):
+                                continue
+                            if x + delta == last_x:
+                                return True
+                            #print("nop")
+                            break
+                if last_x == x and abs(last_y - y) <= r:
+                    if y > last_y:
+                        for delta in range(1, r + 1):
+
+                            if not self.in_board(y - delta, x):
+                                break
+                            #print("-->test23", y, delta, last_y)
+                            if self.is_empty(y - delta, x):
+                                continue
+                            if y - delta == last_y:
+                                return True
+                            #print("nop")
+                            break
+                    if y < last_y:
+                        for delta in range(1, r + 1):
+                            if not self.in_board(y + delta, x):
+                                break
+                            #print("-->test24", y, delta, last_y)
+                            if self.is_empty(y + delta, x):
+                                continue
+                            if y + delta == last_y:
+                                return True
+                            #print("nop")
+                            break
+        return False
+
     def get_siege_attacks(self):
         total_attacks = []
-        for y in range(16):
-            for x in range(8):
-                if self.is_empty(y, x):
+        last_y, last_x = self.last_move
+        team_last_move = self.board[last_y][last_x][2]
+        for y in range(last_y-3, last_y+4):
+            for x in range(last_x-3, last_x+4):
+                if (not self.in_board(y, x)) or self.is_empty(y, x):
                     continue
+                if self.board[y][x][2] == team_last_move:
+                    continue  # deux pions d’une même équipe évitent de se buter
                 moves = self.get_pawn_available_regular_moves(self.board[y][x], y, x)
                 if len(moves) == 0:
-                    total_attacks.append((y, x))
+                    if self.is_blocked_by_last_move(y, x):
+                        #print("--> approuvé")
+                        self.stop = True
+                        total_attacks.append((y, x))
         return total_attacks
+
     def get_game_attacks(self):
         melee_attacks, partial_melee_attacks = self.get_melee_attacks()
         assault_attacks, partial_assault_attacks = self.get_assault_attacks()
         siege_attacks = self.get_siege_attacks()
+
+        self.add_historic("melee", melee_attacks, partial_melee_attacks)
+        self.add_historic("assault", assault_attacks, partial_assault_attacks)
+        self.add_historic("siege", siege_attacks, [])
 
         attacks = melee_attacks + assault_attacks + siege_attacks
         partial_attacks = partial_melee_attacks + partial_assault_attacks
@@ -478,7 +570,7 @@ class Game:
 
             # print_file("paf", ["-->",  self.board[y][x], self.pyramid[1-self.player_turn]])
 
-    def __init__(self):
+    def __init__(self, historic=False):
         self.board = []  # valeur forme, équipe
         self.init_board()
         self.turn = 0  # numéro du tour
@@ -487,11 +579,16 @@ class Game:
         self.height = 16
         self.pyramid = np.array([[1, 4, 9, 16, 25, 36], [-1, 16, 25, 36, 49, 64]])
         self.stop = False
+        self.last_move = (-1, -1)
+        self.historic = historic
+
+        if self.historic:
+            clear_file("historic")
         print("test")
         clear_file("paf")
 
         i = 0
-        for j in range(1):
+        for j in range(19999):
             if self.stop:
                 break
             coups = self.get_game_available_moves()
@@ -511,4 +608,4 @@ class Game:
         self.show_game()
 
 
-game = Game()
+game = Game(historic=True)
