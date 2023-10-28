@@ -26,3 +26,9 @@ Attaque:
 Pyramide :
 blanche :[1, 4, 9, 16, 25, 36]
 noire : [-1, 16, 25, 36, 49, 64]
+
+MEET: bleu foncé
+GALLOWS: violet
+AMBUSH: orange
+ASSAULT: rose
+SIEGE: marron
