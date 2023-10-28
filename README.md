@@ -22,3 +22,7 @@ formes:
 Attaque:
 - (y,x) pour normale
 - (y,x,n) pour attaque d’un étage de pyramide
+
+Pyramide :
+blanche :[1, 4, 9, 16, 25, 36]
+noire : [-1, 16, 25, 36, 49, 64]
