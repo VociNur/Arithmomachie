@@ -54,7 +54,7 @@ def a_is_equation(a, b, c):
         or b / a == c
 
 
-def is_progression(a, b, c):
+def get_progression(a, b, c):
     t = [a, b, c]
     t.sort()
     u, v, w = t
@@ -187,14 +187,18 @@ class Game:
 
     def init_frame(self):
         # Ajout des éléments à la liste
-        for i in range(self.turn):
+        for i in range(1, self.turn+1):
             if not self.game_attacks[i - 1]:
                 continue
             types = set()
+            #add star
             star = "" #s’il y a une pyramide
             for attack in self.game_attacks[i - 1]:
                 (type, attackers, attacked) = attack
-                if attacked[2] == 4:
+                (y, x, n) = attacked
+                #print("attaqué init_frame", i, attacked)
+                #print("affiché", self.game_history[i-1][y][x])
+                if self.game_history[i-1][y][x][1] == 4:
                     star = "*"
                 types.add(type)
             label = ""
@@ -459,17 +463,17 @@ class Game:
 
     def progression_attacks(self, y, x, a: int, b: int):  # même idée que précédent
         attacks = []
-        progression = is_progression(self.board[y][x][0], a, b)
+        progression = get_progression(self.board[y][x][0], a, b)
         if progression > 0:
-            print("PROGRESSION", self.board[y][x][0], a, b, self.turn)
+            ##print("PROGRESSION", self.board[y][x][0], a, b, self.turn)
             attacks.append((y, x, self.board[y][x][0], progression))
         if self.board[y][x][1] == 4:  # le retour de l’ennui
             for n in self.pyramid[1 - self.player_turn]:  # si elle appartient à l’ennemi
                 if n == -1:
                     continue
-                pro = is_progression(n, a, b)
+                pro = get_progression(n, a, b)
                 if pro > 0:
-                    print("PROGRESSION", pro, n, a, b, self.turn)
+                    ##print("PROGRESSION", pro, n, a, b, self.turn)
                     attacks.append((y, x, n, pro))
         return attacks
 
@@ -750,6 +754,8 @@ class Game:
         for a in attacks:
             (type_attack, attackers, attacked) = a
             (y, x, n) = attacked
+            if self.is_empty(y, x):
+                continue
             if n == self.board[y][x][0]:  # c’est une attaque totale
                 self.board[y][x] = (-1, -1, -1)
                 continue
@@ -774,7 +780,80 @@ class Game:
                 self.board[y][x] = [-1, -1, -1]
 
             # print_file("paf", ["-->",  self.board[y][x], self.pyramid[1-self.player_turn]])
+    def set_win(self, n):
+        print("GAGNE", n)
+        self.stop = True
+        self.winner = n
 
+    def get_pawn_neighbours(self, y, x):
+        neighbours = []
+        for ay in range(y+1, 16):
+            if not self.is_empty(ay, x):
+                neighbours.append((ay, x, self.board[ay][x]))
+                break
+        for ay in range(y-1, -1, -1):
+            if not self.is_empty(ay, x):
+                neighbours.append((ay, x, self.board[ay][x]))
+                break
+        for ax in range(x+1, 8):
+            if not self.is_empty(y, ax):
+                neighbours.append((y, ax, self.board[y][ax]))
+                break
+        for ax in range(x-1, -1, -1):
+            if not self.is_empty(y, ax):
+                neighbours.append((y, ax, self.board[y][ax]))
+                break
+        #print("voisins", y, x, neighbours)
+        return neighbours
+
+    def check_end(self):
+        for y in range(8):
+            for x in range(8):
+                if self.is_empty(y, x) or self.board[y][x][2] == 1:
+                    continue
+
+                neighbours = []
+                for neighbour in self.get_pawn_neighbours(y, x):
+                    (v, u, pawn) = neighbour
+                    if pawn[2] == 0 and v < 8:
+                        neighbours.append(list(pawn))
+                #print("voisin gardé", neighbours)
+
+                n = len(neighbours)
+                if n < 2:
+                    continue
+                #print("ici")
+                for j in range(1, n):
+                    for i in range(j): #0<=i<j<=n-1
+                        #Toutes les combinaisons
+                        if get_progression(self.board[y][x][0], neighbours[i][0], neighbours[j][0]) >0:
+                            #print("avant gagne1", self.board[y][x], neighbours[i], neighbours[j], "in", y, x)
+                            self.set_win(0)
+                            return
+
+        for y in range(8):
+            for x in range(8):
+                if self.is_empty(y, x) or self.board[y][x][2] == 0:
+                    continue
+
+                neighbours = []
+                for neighbour in self.get_pawn_neighbours(y, x):
+                    (v, u, pawn) = neighbour
+                    if pawn[2] == 1 and v >= 8:
+                        neighbours.append(list(pawn))
+                #print("voisin gardé", neighbours)
+
+                n = len(neighbours)
+                if n < 2:
+                    continue
+                #print("ici")
+                for j in range(1, n):
+                    for i in range(j): #0<=i<j<=n-1
+                        #Toutes les combinaisons
+                        if get_progression(self.board[y][x][0], neighbours[i][0], neighbours[j][0]) >0:
+                            #print("avant gagne2", self.board[y][x], neighbours[i], neighbours[j], "in", y, x)
+                            self.set_win(1)
+                            return
     def __init__(self, view=False):
         self.start_time = time.time()
         self.board = []  # valeur forme, équipe
@@ -795,9 +874,10 @@ class Game:
         self.iview = -1
         if self.view:
             self.game_history.append(self.board.copy())
+        self.winner = -1
         print("test")
 
-        for j in range(1, 1000):  # ne sert à rien de dépasser 2000
+        for j in range(1, 1001):  # ne sert à rien de dépasser 2000
             if self.stop:
                 break
             preattacks = self.get_game_attacks()
@@ -812,12 +892,13 @@ class Game:
             available_attacks = attacks
             for no in preattacks:
                 if no in attacks:
-                    attacks.remove(no)
+                    available_attacks.remove(no)
 
             self.game_attacks.append([])
             self.game_attacks[self.turn] = available_attacks
 
             self.kill(available_attacks)
+            self.check_end()
             self.end_turn()
 
         # print_board(self.board)
