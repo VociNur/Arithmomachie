@@ -37,7 +37,7 @@ def print_file(f: str, args):
 
 def is_power_or_root(a, b):
     if a <= 0 or b <= 0:
-        print("IS POWER OR ROOT ERROR")
+        print("IS POWER OR ROOT ERROR", a, b)
         return
     if a == b:
         return True
@@ -52,6 +52,22 @@ def a_is_equation(a, b, c):
         or a * b == c \
         or a / b == c \
         or b / a == c
+
+
+def is_progression(a, b, c):
+    t = [a, b, c]
+    t.sort()
+    u, v, w = t
+    if 2 * v == u + w:
+        print(f"aide: 2*{v} = {u}+{w}")
+        return 1  # arithmétique
+    if v * v == u * w:
+        print(f"aide: {v}*{v} = {u}*{w}")
+        return 2  # géométrique
+    if v * (u + w) == 2 * u * w:
+        print(f"aide: {v}*({u}+{w}) = 2*{u}*{w}")
+        return 3  # harmonique
+    return 0
 
 
 def add_attacks(l1: list, l2: list, p: (list, list)):
@@ -119,7 +135,6 @@ class Game:
 
     def init_view(self, board):
         self.canvas.delete("all")
-        self.canvas.grid(row=0, column=0, columnspan=1)
         for i in range(self.width):
             for j in range(self.height):
                 if not self.is_empty_specific_board(board, j, i):
@@ -155,6 +170,10 @@ class Game:
                     color_attack = "lightslateblue"  # violet
                 elif type_attack == TypeAttack.AMBUSH:
                     color_attack = "orangered1"
+                elif type_attack == TypeAttack.PROGRESSION_A\
+                        or type_attack == TypeAttack.PROGRESSION_G\
+                        or type_attack == TypeAttack.PROGRESSION_H:
+                    color_attack = "cyan"
                 elif type_attack == TypeAttack.ASSAULT:
                     color_attack = "pink"
                 elif type_attack == TypeAttack.SIEGE:
@@ -172,14 +191,17 @@ class Game:
             if not self.game_attacks[i - 1]:
                 continue
             types = set()
+            star = "" #s’il y a une pyramide
             for attack in self.game_attacks[i - 1]:
                 (type, attackers, attacked) = attack
+                if attacked[2] == 4:
+                    star = "*"
                 types.add(type)
             label = ""
             for possibilities in TypeAttack:
                 if possibilities in types:
                     label += possibilities.value
-            button = tk.Button(self.frame, text=f"{i}:{label} ", command=partial(self.set_view, i))
+            button = tk.Button(self.frame, text=f"{i}:{label}{star} ", command=partial(self.set_view, i))
             button.pack(fill=tk.X)
 
     def show_game(self):
@@ -188,8 +210,8 @@ class Game:
         self.iview = self.turn
 
         self.display = tk.Tk()
-        self.display.config(width=600, height=800)
-        self.display.geometry("600x800")
+        self.display.config(width=500, height=800)
+        self.display.geometry("500x800")
         self.display.title('Grid')
         self.display.columnconfigure(0, weight=5)
         # self.display.columnconfigure(1, weight=1)
@@ -197,11 +219,15 @@ class Game:
 
         self.canvas = tk.Canvas(self.display, width=400, height=800, bg='#FFFFFF')
         self.init_view(self.board)
-        self.canvas.grid(column=0, row=0)
+        self.canvas.pack(side="left")
 
-        self.frame = tk.Frame(self.display, width=200, height=800)
+        self.canvas2 = tk.Canvas(self.display, width=100, height=800)
+        self.frame = tk.Frame(self.canvas2, width=100, height=800)
         self.init_frame()
-        self.frame.grid(column=1, row=0, columnspan=1, sticky="nsew")
+        self.frame.pack(side="right", expand=True, fill=tk.BOTH)
+        self.canvas2.pack(fill=tk.BOTH)
+
+
 
         listener = keyboard.Listener(on_press=self.on_press_key)
         listener.start()  # start thread
@@ -330,11 +356,6 @@ class Game:
         if self.view:
             self.game_history.append(self.board.copy())
 
-    def add_attacks(self, attacks, addattacks, type_attack):
-        total_attacks, partial_attacks = addattacks
-        for ta in total_attacks:
-            attacks.append((type_attack,))
-
     # copier-coller de get_pawn_available_moves mais on veut un pion dans les coins
     def get_pawn_melee_attacks(self, pawn, j, i):
         available_attacks = []
@@ -436,6 +457,22 @@ class Game:
                     attacks.append((y, x, n))
         return attacks
 
+    def progression_attacks(self, y, x, a: int, b: int):  # même idée que précédent
+        attacks = []
+        progression = is_progression(self.board[y][x][0], a, b)
+        if progression > 0:
+            print("PROGRESSION", self.board[y][x][0], a, b, self.turn)
+            attacks.append((y, x, self.board[y][x][0], progression))
+        if self.board[y][x][1] == 4:  # le retour de l’ennui
+            for n in self.pyramid[1 - self.player_turn]:  # si elle appartient à l’ennemi
+                if n == -1:
+                    continue
+                pro = is_progression(n, a, b)
+                if pro > 0:
+                    print("PROGRESSION", pro, n, a, b, self.turn)
+                    attacks.append((y, x, n, pro))
+        return attacks
+
     def get_melee_attacks(self, attacks):
         attack_board = self.get_melee_attack_board()
 
@@ -454,7 +491,7 @@ class Game:
                         # print("Append pot:", str((TypeAttack.MEET, [a], (y, x, self.board[y][x][0]))))
                         attacks.append((TypeAttack.GALLOWS, [a], (y, x, self.board[y][x][0])))
 
-                # Embuscade
+                # Embuscade et progression
                 for i in range(len(attackers)):
                     for j in range(i):
                         ai = attackers[i]
@@ -465,8 +502,18 @@ class Game:
                             # print("Append emb:", str((TypeAttack.AMBUSH, [attackers[i], attackers[j]], ea)))
                             attacks.append((TypeAttack.AMBUSH, [attackers[i], attackers[j]], ea))
 
-    def get_assault_attacks(self,
-                            attacks):  # Il y aurait moyen de réduire un peu la taille avec fonction auxiliaire, pas sûr...
+                        progression_attacks = self.progression_attacks(y, x, ai[2], aj[2])
+                        for pa in progression_attacks:
+                            (y, x, n, pro) = pa
+                            if pro == 1:
+                                attacks.append((TypeAttack.PROGRESSION_A, [attackers[i], attackers[j]], (y, x, n)))
+                            if pro == 2:
+                                attacks.append((TypeAttack.PROGRESSION_G, [attackers[i], attackers[j]], (y, x, n)))
+                            if pro == 3:
+                                attacks.append((TypeAttack.PROGRESSION_H, [attackers[i], attackers[j]], (y, x, n)))
+
+    def get_assault_attacks(self, attacks):
+        # Il y aurait moyen de réduire un peu la taille avec fonction auxiliaire, pas sûr...
         # en ligne, en colonne, ou en diagonale
         # print("-------------------")
         # 1. en ligne
