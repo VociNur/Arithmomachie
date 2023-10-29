@@ -95,7 +95,7 @@ class Game:
             self.canvas.winfo_rooty(),
             self.canvas.winfo_rootx() + self.canvas.winfo_width(),
             self.canvas.winfo_rooty() + self.canvas.winfo_height()
-        )).save("IMAGE.png")
+        )).save("TEST.png")
 
     def on_press_key(self, key):
         if not self.view:
