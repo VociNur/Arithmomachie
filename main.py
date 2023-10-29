@@ -1,8 +1,19 @@
 import math
-from tkinter import *
+import tkinter as tk
+from io import BytesIO
+from tkinter import Y
+
+from PIL import Image, ImageGrab
 import numpy as np
 import json
 import random
+import time
+
+from functools import partial
+from pynput import keyboard
+from pynput.keyboard import Key, KeyCode
+
+from enums.type_attack import TypeAttack
 
 width, height = (8, 16)
 
@@ -26,8 +37,10 @@ def print_file(f: str, args):
         file.write(arg + "\n")
 
 
-
 def is_power_or_root(a, b):
+    if a <= 0 or b <= 0:
+        print("IS POWER OR ROOT ERROR")
+        return
     if a == b:
         return True
     elif a == 1 or b == 1:
@@ -49,35 +62,157 @@ def add_attacks(l1: list, l2: list, p: (list, list)):
 
 
 class Game:
-    # Permet de visualiser le jeu à la fin de la partie
-    def show_game(self):
-        tk = Tk()
-        tk.config(width=400, height=800)
-        tk.title('Grid')
+    def update_view(self):
+        self.init_view(self.game_history[self.iview])
 
-        canvas = Canvas(tk, width=400, height=800, bg='#FFFFFF')
-        canvas.grid(row=0, column=0, columnspan=1)
+    def delta_iview(self, n: int):
+        self.iview += n
+        if self.iview < 0:
+            self.iview += self.turn + 1
+        if self.iview > self.turn:
+            self.iview -= (self.turn + 1)
+        print(f"Current view {self.iview}/{self.turn}")
+        self.update_view()
+
+    def set_view(self, n: int):
+        print(f"set_view {n}")
+        self.iview = n
+        self.update_view()
+
+    def old_take_photo(self):
+
+        self.canvas.update()
+        # Get the EPS corresponding to the canvas
+        eps = self.canvas.postscript(colormode='color')
+
+        # Save canvas as "in-memory" EPS and pass to PIL without writing to disk
+        im = Image.open(BytesIO(bytes(eps, 'ascii')))
+        im.save('result.png')
+
+    def take_photo(self):
+        ImageGrab.grab(bbox=(
+            self.canvas.winfo_rootx(),
+            self.canvas.winfo_rooty(),
+            self.canvas.winfo_rootx() + self.canvas.winfo_width(),
+            self.canvas.winfo_rooty() + self.canvas.winfo_height()
+        )).save("TEST.png")
+
+    def on_press_key(self, key):
+        if not self.view:
+            print("Pas de view")
+            return
+        if self.turn > 100:
+            if key == Key.down:
+                self.delta_iview(-100)
+            if key == Key.up:
+                self.delta_iview(100)
+        if key == Key.left:
+            self.delta_iview(-1)
+        if key == Key.right:
+            self.delta_iview(1)
+        # print(key)
+        if key == KeyCode.from_char('b'):
+            self.set_view(0)
+        if key == KeyCode.from_char('é'):
+            self.set_view(self.turn)
+
+        #if key == KeyCode.from_char("z"):
+         #   self.old_take_photo()
+
+    def init_view(self, board):
+        self.canvas.delete("all")
+        self.canvas.grid(row=0, column=0, columnspan=1)
         for i in range(self.width):
             for j in range(self.height):
-                if not self.is_empty(j, i):
-                    (point, form, team) = self.board[j][i]
+                if not self.is_empty_specific_board(board, j, i):
+                    (point, form, team) = board[j][i]
                     color = "Blue" if team == 0 else "Red"
                     if form == 1:
-                        canvas.create_oval(i * 50 + 5, j * 50 + 5, (i + 1) * 50 - 5, (j + 1) * 50 - 5, outline=color,
-                                           fill="WHITE", width=2)
+                        self.canvas.create_oval(i * 50 + 5, j * 50 + 5, (i + 1) * 50 - 5, (j + 1) * 50 - 5,
+                                                outline=color,
+                                                fill="WHITE", width=2)
                     if form == 2:
                         dp = np.array([(-20, 20), (20, 20), (0, -20)])
                         points = (i * 50 + 25, j * 50 + 25) + dp
-                        canvas.create_polygon(points.flatten().tolist(), outline=color, fill="WHITE", width=2)
+                        self.canvas.create_polygon(points.flatten().tolist(), outline=color, fill="WHITE", width=2)
                     if form == 3:
-                        canvas.create_rectangle(i * 50 + 5, j * 50 + 5, (i + 1) * 50 - 5, (j + 1) * 50 - 5,
-                                                outline=color, fill="WHITE", width=2)
+                        self.canvas.create_rectangle(i * 50 + 5, j * 50 + 5, (i + 1) * 50 - 5, (j + 1) * 50 - 5,
+                                                     outline=color, fill="WHITE", width=2)
 
-                    canvas.create_text(i * 50 + 25, j * 50 + 25, text=str(point))
+                    if form <= 3:
+                        self.canvas.create_text(i * 50 + 25, j * 50 + 25, text=str(point))
+                    else:
+                        self.canvas.create_text(i * 50 + 25, j * 50 + 25, text=str(point), fill=color)
+        if self.iview > 0:
+            (y, x), (y2, x2) = self.move_history[self.iview - 1]
+            self.canvas.create_line(x * 50 + 25, y * 50 + 25, x2 * 50 + 25, y2 * 50 + 25, arrow=tk.LAST,
+                                    fill="GREEN", width=2)
+            for attacks in self.attack_history[self.iview - 1]:
+                (type_attack, attackers, attacked) = attacks
+                y2, x2 = attacked
+                color_attack = ""
+                if type_attack == TypeAttack.MEET:
+                    color_attack = "deepskyblue4"  # bleu foncé
+                elif type_attack == TypeAttack.GALLOWS:
+                    color_attack = "lightslateblue"  # violet
+                elif type_attack == TypeAttack.AMBUSH:
+                    color_attack = "orangered1"
+                elif type_attack == TypeAttack.ASSAULT:
+                    color_attack = "pink"
+                elif type_attack == TypeAttack.SIEGE:
+                    color_attack = "chocolate4"  # marron
+                for attacker in attackers:
+                    y, x = attacker
+                    self.canvas.create_line(x * 50 + 25, y * 50 + 25, x2 * 50 + 25, y2 * 50 + 25, arrow=tk.LAST,
+                                            fill=color_attack, width=2)
 
-        canvas.pack()
+        self.canvas.update()
 
-        mainloop()
+    def init_frame(self):
+        # Ajout des éléments à la liste
+        for i in range(self.turn):
+            if not self.attack_history[i-1]:
+                continue
+            types = set()
+            for attack in self.attack_history[i-1]:
+                (type, attackers, attacked) = attack
+                types.add(type)
+            label = ""
+            for possibilities in TypeAttack:
+                if possibilities in types:
+                    label += possibilities.value
+            button = tk.Button(self.frame, text=f"{i}:{label} ", command=partial(self.set_view, i))
+            button.pack(fill=tk.X)
+
+    def show_game(self):
+        if not self.view:
+            return
+        self.iview = self.turn
+
+        self.display = tk.Tk()
+        self.display.config(width=600, height=800)
+        self.display.geometry("600x800")
+        self.display.title('Grid')
+        self.display.columnconfigure(0, weight=5)
+        #self.display.columnconfigure(1, weight=1)
+        self.display.grid_propagate(True)
+
+
+        self.canvas = tk.Canvas(self.display, width=400, height=800, bg='#FFFFFF')
+        self.init_view(self.board)
+        self.canvas.grid(column=0, row=0)
+
+        self.frame = tk.Frame(self.display, width=200, height=800)
+        self.init_frame()
+        self.frame.grid(column=1, row=0, columnspan=1, sticky="nsew")
+
+        listener = keyboard.Listener(on_press=self.on_press_key)
+        listener.start()  # start thread
+
+        self.display.mainloop()
+
+        listener.stop()  # stop thread
+        listener.join()  # wait till thread really ends its job
 
     def add_piece(self, y, x, side, form, value):
         self.board[y][x] = (side, form, value)
@@ -96,8 +231,12 @@ class Game:
     def is_empty(self, j, i):
         return np.equal(self.board[j][i], [-1, -1, -1]).all()
 
+    @staticmethod
+    def is_empty_specific_board(board, j, i):
+        return np.equal(board[j][i], [-1, -1, -1]).all()
+
     def add_historic(self, name: str, t1, t2):
-        if not self.historic:
+        if not self.file_historic:
             return
         with open("historic.txt", "a") as file:
             file.write(name + ": " + str(t1) + str(t2) + "\n")
@@ -174,7 +313,7 @@ class Game:
     # Pour chaque case, si elle n’est pas vide, on récupère les mouvements régulier et irrégulier
     def get_game_available_moves(self):
         available_moves = []  # 1 move = 2 couples (y, x)
-        # pour toutes les cases non vide, on ajoute ses coups possibles dans la liste des coups
+        # pour toutes les cases non vides, on ajoute ses coups possibles dans la liste des coups
         for y in range(16):
             for x in range(8):
                 if self.is_empty(y, x):
@@ -191,10 +330,14 @@ class Game:
         self.board[y + dy][x + dx] = self.board[y][x]
         self.board[y][x] = (-1, -1, -1)
         self.last_move = (y + dy, x + dx)
+        if self.view:
+            self.move_history.append(((y, x), (y + dy, x + dx)))
 
     def end_turn(self):
         self.turn += 1
         self.player_turn = (self.player_turn + 1) % 2
+        if self.view:
+            self.game_history.append(self.board.copy())
 
     # copier-coller de get_pawn_available_moves mais on veut un pion dans les coins
     def get_pawn_melee_attacks(self, pawn, j, i):
@@ -278,11 +421,12 @@ class Game:
                     continue
                 for attack in self.get_pawn_melee_attacks((value, form, team), y, x):
                     # print("attack", attack, value)
-                    attack_board[attack[0]][attack[1]].append(value)
+                    attack_board[attack[0]][attack[1]].append((y, x, value))
 
         return attack_board
 
     # Gère les attaques et attaques partielles sur une pyramide
+    # renvois les attaques de a et b sur la case de coordonnée (y, x)
     def equations_attacks(self, y, x, a: int,
                           b: int):  # a et b sont des pseudos-attaquants, utilisé lors d’attaque en assaut
         total_attacks = []
@@ -291,9 +435,12 @@ class Game:
             total_attacks.append((y, x))
         if self.board[y][x][1] == 4:  # le retour de l’ennui
             for n in self.pyramid[1 - self.player_turn]:  # si elle appartient à l’ennemi
+                if n == -1:
+                    continue
+
                 if a_is_equation(n, a, b):
                     partial_attacks.append((y, x, n))
-        return total_attacks, partial_attacks
+        return (total_attacks, partial_attacks), len(total_attacks) + len(partial_attacks)
 
     def get_melee_attacks(self):
         total_attacks = []
@@ -304,14 +451,29 @@ class Game:
                 attackers = attack_board[y][x]
                 # Rencontre et puissance
                 for a in attackers:
+                    (ay, ax, an) = a
                     # print("-->", self.board[y][x][0], a)
-                    if is_power_or_root(self.board[y][x][0], a):
+                    if self.board[y][x][0] == an:  # Rencontre
                         total_attacks.append((y, x))
+                        if self.view:
+                            self.attack_history[self.turn].append((TypeAttack.MEET, [(ay, ax)], (y, x)))
+                    elif is_power_or_root(self.board[y][x][0], an):  # Potence
+                        total_attacks.append((y, x))
+                        if self.view:
+                            self.attack_history[self.turn].append((TypeAttack.GALLOWS, [(ay, ax)], (y, x)))
+
                 # Embuscade
                 for i in range(len(attackers)):
                     for j in range(i):
-                        equa_attacks = self.equations_attacks(y, x, attackers[i], attackers[j])
-                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks, equa_attacks)
+                        ai = attackers[i]
+                        aj = attackers[j]
+
+                        equation_attacks, number_equation_attacks = self.equations_attacks(y, x, ai[2], aj[2])
+                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks, equation_attacks)
+                        if self.view and number_equation_attacks > 0:
+                            self.attack_history[self.turn].append((TypeAttack.AMBUSH, [(attackers[i][0], attackers[i][1]),
+                                                                                       (attackers[j][0], attackers[j][1])],
+                                                                   (y, x)))
         return total_attacks, partial_attacks
 
     def get_assault_attacks(self):  # Il y aurait moyen de réduire un peu la taille avec fonction auxiliaire, pas sûr...
@@ -340,12 +502,17 @@ class Game:
                 # on l’attaque avec la pièce à nous et la distance qui les sépare
                 if espace > 1:
                     if last_piece[2] == self.player_turn and self.board[y][x][2] != self.player_turn:
-                        equa_attacks = self.equations_attacks(y, x, last_piece[0], espace)
-                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks, equa_attacks)
+                        equation_attacks, number_equation_attacks = self.equations_attacks(y, x, last_piece[0], espace)
+                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks, equation_attacks)
+                        if self.view and number_equation_attacks > 0:
+                            self.attack_history[self.turn].append((TypeAttack.ASSAULT, [(last_y, last_x)], (y, x)))
 
                     if last_piece[2] != self.player_turn and self.board[y][x][2] == self.player_turn:
-                        equa_attacks = self.equations_attacks(last_y, last_x, self.board[y][x][0], espace)
-                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks, equa_attacks)
+                        equation_attacks, number_equation_attacks = self.equations_attacks(last_y, last_x,
+                                                                                           self.board[y][x][0], espace)
+                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks, equation_attacks)
+                        if self.view and number_equation_attacks > 0:
+                            self.attack_history[self.turn].append((TypeAttack.ASSAULT, [(y, x)], (last_y, last_x)))
                 last_piece = self.board[y][x]
                 last_y = y
                 last_x = x
@@ -369,14 +536,19 @@ class Game:
                     continue
                 if espace > 1:
                     if last_piece[2] == self.player_turn and self.board[y][x][2] != self.player_turn:
-                        equa_attacks = self.equations_attacks(y, x, last_piece[0], espace)
+                        equation_attacks, number_equation_attacks = self.equations_attacks(y, x, last_piece[0], espace)
                         total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks,
-                                                                     equa_attacks)
+                                                                     equation_attacks)
+                        if self.view and number_equation_attacks > 0:
+                            self.attack_history[self.turn].append((TypeAttack.ASSAULT, [(last_y, last_x)], (y, x)))
 
                     if last_piece[2] != self.player_turn and self.board[y][x][2] == self.player_turn:
-                        equa_attacks = self.equations_attacks(last_y, last_x, self.board[y][x][0], espace)
+                        equation_attacks, number_equation_attacks = self.equations_attacks(last_y, last_x,
+                                                                                           self.board[y][x][0], espace)
                         total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks,
-                                                                     equa_attacks)
+                                                                     equation_attacks)
+                        if self.view and number_equation_attacks > 0:
+                            self.attack_history[self.turn].append((TypeAttack.ASSAULT, [(y, x)], (last_y, last_x)))
                 last_piece = self.board[y][x]
                 last_y = y
                 last_x = x
@@ -404,12 +576,17 @@ class Game:
                     continue
                 if espace > 1:
                     if last_piece[2] == self.player_turn and self.board[y][x][2] != self.player_turn:
-                        equa_attacks = self.equations_attacks(y, x, last_piece[0], espace)
-                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks, equa_attacks)
+                        equation_attacks, number_equation_attacks = self.equations_attacks(y, x, last_piece[0], espace)
+                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks, equation_attacks)
+                        if self.view and number_equation_attacks > 0:
+                            self.attack_history[self.turn].append((TypeAttack.ASSAULT, [(last_y, last_x)], (y, x)))
 
                     if last_piece[2] != self.player_turn and self.board[y][x][2] == self.player_turn:
-                        equa_attacks = self.equations_attacks(last_y, last_x, self.board[y][x][0], espace)
-                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks, equa_attacks)
+                        equation_attacks, number_equation_attacks = self.equations_attacks(last_y, last_x,
+                                                                                           self.board[y][x][0], espace)
+                        total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks, equation_attacks)
+                        if self.view and number_equation_attacks > 0:
+                            self.attack_history[self.turn].append((TypeAttack.ASSAULT, [(y, x)], (last_y, last_x)))
                 last_piece = self.board[y][x]
                 last_y = y
                 last_x = x
@@ -436,14 +613,19 @@ class Game:
                     continue
                 if espace > 1:
                     if last_piece[2] == self.player_turn and self.board[y][x][2] != self.player_turn:
-                        equa_attacks = self.equations_attacks(y, x, last_piece[0], espace)
+                        equation_attacks, number_equation_attacks = self.equations_attacks(y, x, last_piece[0], espace)
                         total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks,
-                                                                     equa_attacks)
+                                                                     equation_attacks)
+                        if self.view and number_equation_attacks > 0:
+                            self.attack_history[self.turn].append((TypeAttack.ASSAULT, [(last_y, last_x)], (y, x)))
 
                     if last_piece[2] != self.player_turn and self.board[y][x][2] == self.player_turn:
-                        equa_attacks = self.equations_attacks(last_y, last_x, self.board[y][x][0], espace)
+                        equation_attacks, number_equation_attacks = self.equations_attacks(last_y, last_x,
+                                                                                           self.board[y][x][0], espace)
                         total_attacks, partial_attacks = add_attacks(total_attacks, partial_attacks,
-                                                                     equa_attacks)
+                                                                     equation_attacks)
+                        if self.view and number_equation_attacks > 0:
+                            self.attack_history[self.turn].append((TypeAttack.ASSAULT, [(y, x)], (last_y, last_x)))
                 last_piece = self.board[y][x]
                 last_y = y
                 last_x = x
@@ -459,10 +641,10 @@ class Game:
             return self.pyramid[team][4] != -1 or self.pyramid[team][5] != -1
 
     def is_blocked_by_last_move(self, y, x):
-        print("test", y, x)
+        # print("test", y, x)
         (value, form, team) = self.board[y][x]
         last_y, last_x = self.last_move
-        print("last move", last_y, last_x)
+        # print("last move", last_y, last_x)
         if form == 1 or (form == 4 and self.check_pyramid_form(team, 1)):  # c’est un rond
             relative_moves_circle = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
             for rm in relative_moves_circle:
@@ -477,24 +659,24 @@ class Game:
                         for delta in range(1, r + 1):
                             if not self.in_board(y, x - delta):
                                 break
-                            #print("-->test21", y, delta, last_y)
+                            # print("-->test21", y, delta, last_y)
                             if self.is_empty(y, x - delta):
                                 continue
                             if x - delta == last_x:
                                 return True
-                            #print("nop")
+                            # print("nop")
                             break
                     if x < last_x:
                         for delta in range(1, r + 1):
                             if not self.in_board(y, x + delta):
                                 break
 
-                            #print("-->test22", y, delta, last_y)
+                            # print("-->test22", y, delta, last_y)
                             if self.is_empty(y, x + delta):
                                 continue
                             if x + delta == last_x:
                                 return True
-                            #print("nop")
+                            # print("nop")
                             break
                 if last_x == x and abs(last_y - y) <= r:
                     if y > last_y:
@@ -502,23 +684,23 @@ class Game:
 
                             if not self.in_board(y - delta, x):
                                 break
-                            #print("-->test23", y, delta, last_y)
+                            # print("-->test23", y, delta, last_y)
                             if self.is_empty(y - delta, x):
                                 continue
                             if y - delta == last_y:
                                 return True
-                            #print("nop")
+                            # print("nop")
                             break
                     if y < last_y:
                         for delta in range(1, r + 1):
                             if not self.in_board(y + delta, x):
                                 break
-                            #print("-->test24", y, delta, last_y)
+                            # print("-->test24", y, delta, last_y)
                             if self.is_empty(y + delta, x):
                                 continue
                             if y + delta == last_y:
                                 return True
-                            #print("nop")
+                            # print("nop")
                             break
         return False
 
@@ -526,8 +708,8 @@ class Game:
         total_attacks = []
         last_y, last_x = self.last_move
         team_last_move = self.board[last_y][last_x][2]
-        for y in range(last_y-3, last_y+4):
-            for x in range(last_x-3, last_x+4):
+        for y in range(last_y - 3, last_y + 4):
+            for x in range(last_x - 3, last_x + 4):
                 if (not self.in_board(y, x)) or self.is_empty(y, x):
                     continue
                 if self.board[y][x][2] == team_last_move:
@@ -535,12 +717,14 @@ class Game:
                 moves = self.get_pawn_available_regular_moves(self.board[y][x], y, x)
                 if len(moves) == 0:
                     if self.is_blocked_by_last_move(y, x):
-                        #print("--> approuvé")
-                        self.stop = True
                         total_attacks.append((y, x))
+                        if self.view:
+                            self.attack_history[self.turn].append((TypeAttack.SIEGE, [(last_y, last_x)], (y, x)))
         return total_attacks
 
     def get_game_attacks(self):
+        if self.view:
+            self.attack_history.append([])
         melee_attacks, partial_melee_attacks = self.get_melee_attacks()
         assault_attacks, partial_assault_attacks = self.get_assault_attacks()
         siege_attacks = self.get_siege_attacks()
@@ -559,8 +743,17 @@ class Game:
             self.board[y][x] = (-1, -1, -1)
             # print("paf")
         for p in partial_attack:  # on attaque celle de l’adversaire donc 1-player_turn
+            # print("partial attack", self.turn)
             (y, x, n) = p
-            i = np.where(self.pyramid[1 - self.player_turn] == n)[0]
+            # print("partial attack", y, x, n)
+            # print("pyramide de l’autre", self.pyramid[1 - self.player_turn])
+            # print("where:", np.where(self.pyramid[1 - self.player_turn] == n))
+            # print("where 0", np.where(self.pyramid[1 - self.player_turn] == n)[0])
+            where = np.where(self.pyramid[1 - self.player_turn] == n)[0]
+            if len(where) == 0:
+                continue
+            i = where[0]
+            # print("i:", i)
             # print_file("paf",[self.board[y][x], p])
             self.pyramid[1 - self.player_turn][i] = -1
             self.board[y][x][0] -= n
@@ -570,7 +763,8 @@ class Game:
 
             # print_file("paf", ["-->",  self.board[y][x], self.pyramid[1-self.player_turn]])
 
-    def __init__(self, historic=False):
+    def __init__(self, file_historic=False, view=False):
+        self.start_time = time.time()
         self.board = []  # valeur forme, équipe
         self.init_board()
         self.turn = 0  # numéro du tour
@@ -580,15 +774,21 @@ class Game:
         self.pyramid = np.array([[1, 4, 9, 16, 25, 36], [-1, 16, 25, 36, 49, 64]])
         self.stop = False
         self.last_move = (-1, -1)
-        self.historic = historic
-
-        if self.historic:
+        self.file_historic = file_historic
+        self.view = view
+        self.game_history = []
+        self.move_history = []
+        self.attack_history = []  # l’élément i représente l’ensemble des attaques après le coup i, une attaque est sous
+        # la forme ([liste attaquant sous forme (ay, ax)], (y, x))
+        self.iview = -1
+        if self.file_historic:
             clear_file("historic")
+        if self.view:
+            self.game_history.append(self.board.copy())
         print("test")
         clear_file("paf")
 
-        i = 0
-        for j in range(19999):
+        for j in range(1, 1000):  # ne sert à rien de dépasser 2000
             if self.stop:
                 break
             coups = self.get_game_available_moves()
@@ -598,14 +798,17 @@ class Game:
             coup = coups[random.randint(0, len(coups) - 1)]
             self.move(coup)
             attack, partial_attack = self.get_game_attacks()
+            # print(attack, partial_attack)
+            # print(self.attack_view[self.turn])
             self.kill(attack, partial_attack)
             self.end_turn()
 
-            i += 1
-
-        print_board(self.board)
-        print("Fin en", i, "tours")
+        # print_board(self.board)
+        print("Fin en", self.turn, "tours")
+        print(f'Temps d\'exécution : {time.time() - self.start_time:.3}s')
+        print_file("tabview", self.game_history)
+        print("Coups enregistré ", len(self.game_history))
         self.show_game()
 
 
-game = Game(historic=True)
+game = Game(view=True)
