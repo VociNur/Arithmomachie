@@ -7,3 +7,4 @@ class TypeAttack(Enum):
     AMBUSH = "-AM"
     ASSAULT = "-AS"
     SIEGE = "-S"
+
