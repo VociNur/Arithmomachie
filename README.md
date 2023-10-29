@@ -20,8 +20,7 @@ formes:
 - 1: noire
 
 Attaque:
-- (y,x) pour normale
-- (y,x,n) pour attaque d’un étage de pyramide
+(TypeAttack, [Attacker (y, x, n)], Attacked (y, x, nattaque)), nattaque représente la partie attaquée, utile lors d’attaque contre pyramide
 
 Pyramide :
 blanche :[1, 4, 9, 16, 25, 36]
