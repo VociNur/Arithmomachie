@@ -870,7 +870,7 @@ class Game:
                             self.set_win(0)
                             return
 
-        for y in range(8):
+        for y in range(8, 16):
             for x in range(8):
                 if self.is_empty(y, x) or self.board[y][x][2] == 0:
                     continue
