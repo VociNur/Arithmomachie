@@ -1,6 +1,8 @@
 import math
 import tkinter as tk
 from io import BytesIO
+from tkinter import ttk
+
 from PIL import Image, ImageGrab
 import numpy as np
 import json
@@ -206,7 +208,10 @@ class Game:
                 if possibilities in types:
                     label += possibilities.value
             button = tk.Button(self.frame, text=f"{i}:{label}{star} ", command=partial(self.set_view, i))
-            button.pack(fill=tk.X)
+            button.pack(fill=tk.BOTH)
+
+    def scrolllistbox2(self, event):
+        self.canvas2.yview_scroll(int(-1 * (event.delta / 60)), "units")
 
     def show_game(self):
         if not self.view:
@@ -219,17 +224,21 @@ class Game:
         self.display.title('Grid')
         self.display.columnconfigure(0, weight=5)
         # self.display.columnconfigure(1, weight=1)
-        self.display.grid_propagate(True)
 
         self.canvas = tk.Canvas(self.display, width=400, height=800, bg='#FFFFFF')
         self.init_view(self.board)
         self.canvas.pack(side="left")
-
+        #Comme fichier sroll_frame
         self.canvas2 = tk.Canvas(self.display, width=100, height=800)
+        self.canvas2.pack(fill=tk.BOTH, expand=True)
+
+        self.canvas2.bind('<Configure>', lambda e:self.canvas2.configure(scrollregion= self.canvas2.bbox('all')))
         self.frame = tk.Frame(self.canvas2, width=100, height=800)
+        self.canvas2.create_window((0, 0), window=self.frame, anchor="nw")
+        self.canvas2.bind_all("<MouseWheel>", self.scrolllistbox2)
+
         self.init_frame()
-        self.frame.pack(side="right", expand=True, fill=tk.BOTH)
-        self.canvas2.pack(fill=tk.BOTH)
+        #self.frame.pack(side="right", expand=True, fill=tk.BOTH)
 
 
 
@@ -785,7 +794,8 @@ class Game:
         self.stop = True
         self.winner = n
 
-    def get_pawn_neighbours(self, y, x):
+    #** get_pawn_neigbours
+    def get_line_and_column_pawn_neighbours(self, y, x):
         neighbours = []
         for ay in range(y+1, 16):
             if not self.is_empty(ay, x):
@@ -806,6 +816,34 @@ class Game:
         #print("voisins", y, x, neighbours)
         return neighbours
 
+    #**get_diagonal_pawn_neighbours
+    def get_diagonal_pawn_neighbours(self, y, x):
+        neighbours = []
+        #UL
+        for dt in range(1, 1 + min(x, y)):
+            if not self.is_empty(y-dt, x-dt):
+                neighbours.append((y-dt, x-dt, self.board[y-dt][x-dt]))
+                break
+        #UR
+        for dt in range(1, 1 + min(7-x, y)):
+            if not self.is_empty(y - dt, x + dt):
+                neighbours.append((y - dt, x + dt, self.board[y - dt][x + dt]))
+                break
+        #DL
+        for dt in range(1, 1 + min(x, 15-y)):
+            if not self.is_empty(y+dt, x-dt):
+                neighbours.append((y+dt, x-dt, self.board[y+dt][x-dt]))
+                break
+        #DR
+        for dt in range(1, 1 + min(7-x, 15-y)):
+            if not self.is_empty(y + dt, x + dt):
+                neighbours.append((y + dt, x + dt, self.board[y + dt][x + dt]))
+                break
+        return neighbours
+
+    #**
+    def get_pawn_neighbours(self, y, x):
+        return self.get_line_and_column_pawn_neighbours(y, x) + self.get_diagonal_pawn_neighbours(y, x)
     def check_end(self):
         for y in range(8):
             for x in range(8):
@@ -827,7 +865,7 @@ class Game:
                     for i in range(j): #0<=i<j<=n-1
                         #Toutes les combinaisons
                         if get_progression(self.board[y][x][0], neighbours[i][0], neighbours[j][0]) >0:
-                            #print("avant gagne1", self.board[y][x], neighbours[i], neighbours[j], "in", y, x)
+                            print("avant gagne1", self.board[y][x], neighbours[i], neighbours[j], "in", y, x)
                             self.set_win(0)
                             return
 
@@ -851,7 +889,7 @@ class Game:
                     for i in range(j): #0<=i<j<=n-1
                         #Toutes les combinaisons
                         if get_progression(self.board[y][x][0], neighbours[i][0], neighbours[j][0]) >0:
-                            #print("avant gagne2", self.board[y][x], neighbours[i], neighbours[j], "in", y, x)
+                            print("avant gagne2", self.board[y][x], neighbours[i], neighbours[j], "in", y, x)
                             self.set_win(1)
                             return
     def __init__(self, view=False):
@@ -877,7 +915,7 @@ class Game:
         self.winner = -1
         print("test")
 
-        for j in range(1, 1001):  # ne sert à rien de dépasser 2000
+        for j in range(1, 1501):  # ne sert à rien de dépasser 2000
             if self.stop:
                 break
             preattacks = self.get_game_attacks()
