@@ -309,6 +309,9 @@ class Game:
     def in_board(self, j, i):
         return 0 <= j < self.height and 0 <= i < self.width
 
+    def set_board_empty(self, j, i):
+        self.board[j][i] = [-1, -1, -1, -1]
+
     def get_id_by_pos(self, y, x):
         return self.board[y][x][3]
 
@@ -901,48 +904,43 @@ class Game:
         self.get_siege_attacks(attacks)
         return attacks
 
-    def kill(self, attacks):
-        for a in attacks:
-            (type_attack, attackers, attacked) = a
-            (y, x, n) = attacked
-            if self.is_empty(y, x):
-                continue
+    def kill(self, nid):
+        if not self.is_alive(nid):
+            return
+        #si il est en vie
+        if nid < FIRST_FAKE_ID_WHITE:
+            #si c’est une attaque "totale"
+            (y, x) = self.locations[nid]
+            self.set_board_empty(y, x)
+            for floor_n in self.develop_pyramid(nid):
+                self.reset_links_of_pawn(floor_n)
+                self.locations[floor_n] = -1
+            return
+        #si c’est une attaque partielle
+        self.reset_links_of_pawn(nid)
+        self.locations[nid] = -1
 
-            nid = self.board[y][x][3]
-            if nid == ID_BLACK_PYRAMID or nid == ID_WHITE_PYRAMID:
-                print("revoir nid important !")
-                print("on doit mettre location à -1, -1")
-                print("on doit retirer le numéro de FAKE_ID_???")
-            if n == self.board[y][x][0]:  # c’est une attaque totale
-                self.board[y][x] = (-1, -1, -1, -1)
-                self.locations[self.board[y][x][3]] = -1
-                for floor_n in self.develop_pyramid(nid):
-                    self.reset_links_of_pawn(floor_n)
+        if nid in FAKE_ID_WHITE:
+            self.value_by_id[FAKE_ID_WHITE] -= self.value_by_id[nid]
+            floor_pyramid_white = 0
+            for i in FAKE_ID_WHITE:
+                if self.is_alive(i):
+                    floor_pyramid_white += 1
+            if floor_pyramid_white == 0:
+                self.kill(ID_WHITE_PYRAMID)
+        if nid in FAKE_ID_BLACK:
+            self.value_by_id[FAKE_ID_BLACK] -= self.value_by_id[FAKE_ID_BLACK]
+            floor_pyramid_black = 0
+            for i in FAKE_ID_BLACK:
+                if self.is_alive(i):
+                    floor_pyramid_black += 1
+            if floor_pyramid_black == 0:
+                self.kill(ID_BLACK_PYRAMID)
 
-                continue
-            # print("vérif", attacked, self.board[y][x])
-            # A partir de là c’est une pyramide
-            # on attaque celle de l’adversaire donc 1-player_turn
-            # print("partial attack", self.turn)
-            # print("partial attack", y, x, n)
-            # print("pyramide de l’autre", self.pyramid[1 - self.player_turn])
-            # print("where:", np.where(self.pyramid[1 - self.player_turn] == n))
-            # print("where 0", np.where(self.pyramid[1 - self.player_turn] == n)[0])
-            where = np.where(self.pyramid[1 - self.player_turn] == n)[0]
-            if len(where) == 0:
-                continue
-            i = where[0]
-            # print("i:", i)
-            # print_file("paf",[self.board[y][x], p])
-            self.pyramid[1 - self.player_turn][i] = -1
-
-            self.board[y][x][0] -= n
-
-            if np.equal(self.pyramid[1 - self.player_turn], [-1, -1, -1, -1, -1, -1]).all():
-                self.board[y][x] = [-1, -1, -1, -1]
-                self.locations[self.board[y][x][3]] = -1
-
-            # print_file("paf", ["-->",  self.board[y][x], self.pyramid[1-self.player_turn]])
+    def execute_all_attacks(self, attacks):
+        for attack in attacks:
+            (type_attack, attackers, attacked) = attack
+            self.kill(attacked)
 
     def set_win(self, n):
         print("GAGNE", n)
@@ -1377,73 +1375,45 @@ class Game:
         # attaque de mêlée
         # attaque MEET et GALLOWS
         for n_piece in range(self.initial_number_of_pieces):
+            if self.team_by_id[n_piece] == self.player_turn:
+                continue
             # pour toutes les pièces et partie de pyramide
             if self.locations[n_piece] == -1:  # Si cette pièce est encore en jeu
                 continue
             n_value = self.value_by_id[n_piece]
-            (y, x) = self.locations[n_piece]
             melee_shooters = self.get_melee_shooter(n_piece)
-            # print("turn:", self.turn)
-            # print(n_piece)
-            # print(self.shooter)
-            # print("shooters:", melee_shooters)
 
             # MEET/GALLOWS
             for s in melee_shooters:
-                # print(self.locations)
-                # print(s)
-                # print("avant err", s, self.locations[s])
-                (ys, xs) = self.locations[s]
                 s_value = self.value_by_id[s]
                 if n_value == s_value:
-                    attacks.append((TypeAttack.MEET, [(ys, xs, s_value)], (y, x, n_value)))
-                    # print("AIMSHOOTER detects ", self.turn, ": ", str((TypeAttack.MEET, [(ys, xs, s_value)], (y, x, n_value))))
+                    attacks.append((TypeAttack.MEET, [s], n_piece))
+
                 elif is_power_or_root(n_value, s_value):
-                    attacks.append((TypeAttack.GALLOWS, [(ys, xs, s_value)], (y, x, n_value)))
-                    # print("AIMSHOOTER detects ", self.turn, ": ", str((TypeAttack.GALLOWS, [(ys, xs, s_value)], (y, x, n_value))))
+                    attacks.append((TypeAttack.GALLOWS, [s], n_piece))
 
             # AMBUSH, PROGRESSION on prend tous les 2 parmis n
             for shooter_i, shooter_j in self.couple_develop_pyramid(melee_shooters):
                 attack = a_is_equation(self.value_by_id[n_piece], self.value_by_id[shooter_i],
                                        self.value_by_id[shooter_j])
                 if attack:
-                    yi, xi = self.locations[shooter_i]
-                    yj, xj = self.locations[shooter_j]
-                    i_value = self.value_by_id[shooter_i]
-                    j_value = self.value_by_id[shooter_j]
-                    attacks.append((TypeAttack.AMBUSH, [(yi, xi, i_value), (yj, xj, j_value)], (y, x, n_value)))
-                    # print("AIMSHOOTER detects ", self.turn, ": ",
-                    #      str((TypeAttack.AMBUSH, [(yi, xi, i_value), (yj, xj, j_value)], (y, x, n_value))))
+                    attacks.append((TypeAttack.AMBUSH, [shooter_i, shooter_j], n_piece))
 
                 pro = get_progression(self.value_by_id[n_piece], self.value_by_id[shooter_i],
                                       self.value_by_id[shooter_j])
                 if pro > 0:
-                    yi, xi = self.locations[shooter_i]
-                    yj, xj = self.locations[shooter_j]
-                    i_value = self.value_by_id[shooter_i]
-                    j_value = self.value_by_id[shooter_j]
                     if pro == 1:
                         attacks.append(
-                            (TypeAttack.PROGRESSION_A, [(yi, xi, i_value), (yj, xj, j_value)], (y, x, n_value)))
-                        # print("AIMSHOOTER detects ", self.turn, ": ",
-                        #      str((TypeAttack.PROGRESSION_A, [(yi, xi, i_value), (yj, xj, j_value)], (y, x, n_value))))
+                            (TypeAttack.PROGRESSION_A, [shooter_i, shooter_j], n_piece))
                     if pro == 2:
                         attacks.append(
-                            (TypeAttack.PROGRESSION_G, [(yi, xi, i_value), (yj, xj, j_value)], (y, x, n_value)))
-                        # print("AIMSHOOTER detects ", self.turn, ": ",
-                        #      str((TypeAttack.PROGRESSION_G, [(yi, xi, i_value), (yj, xj, j_value)], (y, x, n_value))))
+                            (TypeAttack.PROGRESSION_G, [shooter_i, shooter_j], n_piece))
                     if pro == 3:
                         attacks.append(
-                            (TypeAttack.PROGRESSION_H, [(yi, xi, i_value), (yj, xj, j_value)], (y, x, n_value)))
-                        # print("AIMSHOOTER detects ", self.turn, ": ",
-                        #      str((TypeAttack.PROGRESSION_H, [(yi, xi, i_value), (yj, xj, j_value)], (y, x, n_value))))
+                            (TypeAttack.PROGRESSION_H, [shooter_i, shooter_j], n_piece))
             # ASSAULT
             for shooter_i in self.get_ranged_shooter(n_piece):
-                yi, xi = self.locations[shooter_i]
-                i_value = self.value_by_id[shooter_i]
-                attacks.append((TypeAttack.ASSAULT, [(yi, xi, i_value)], (y, x, n_value)))
-                # print("AIMSHOOTER detects ", self.turn, ": ",
-                #      str((TypeAttack.ASSAULT, [(yi, xi, i_value)], (y, x, n_value))))
+                attacks.append((TypeAttack.ASSAULT, [shooter_i], n_piece))
         return attacks
     def check_pyramid_has_form(self, nid, required_form):
         if nid == ID_WHITE_PYRAMID:
@@ -1503,7 +1473,7 @@ class Game:
         return pieces
 
     def detect_siege(self):
-
+        attacks = []
         (old_y, old_x), (current_y, current_x) = self.last_move
         neighbours = self.get_pieces_to_check_for_siege(current_y, current_x)
         center_id = self.get_id_by_pos(current_y, current_x)
@@ -1512,10 +1482,8 @@ class Game:
         for nid in neighbours:
 
             if team != self.team_by_id[nid] and not self.has_pawn_available_regular_moves(nid):
-                (y, x) = self.locations[nid]
-                value = self.value_by_id[nid]
-                print("AIMSHOOTER detects ", self.turn, ": ",
-                      str((TypeAttack.SIEGE, (current_y, current_x, value), (y, x, value))))
+                attacks.append((TypeAttack.SIEGE, nid, nid))
+        return attacks
 
     def __init__(self, view=False):
         self.start_time = time.time()
@@ -1599,19 +1567,20 @@ class Game:
                 if no in attacks:
                     available_attacks.remove(no)
 
-            aim_attacks = self.get_attacks_with_aim_shooter()
+            aim_attacks = self.get_attacks_with_aim_shooter() + self.detect_siege()
             available_aim_attacks = aim_attacks
             for no in pre_aim_attacks:
                 if no in aim_attacks:
                     available_aim_attacks.remove(no)
-
+            print(self.turn)
+            for i in available_attacks:
+                print("BRUTE detects ", self.turn, ": ", str(i))
             for i in available_aim_attacks:
                 print("AIMSHOOTER detects ", self.turn, ": ", str(i))
 
             self.game_attacks.append([])
             self.game_attacks[self.turn] = available_attacks
-            self.detect_siege()
-            self.kill(available_attacks)
+            self.execute_all_attacks(available_aim_attacks)
             self.check_end()
             self.end_turn()
 
