@@ -29,7 +29,7 @@ Chaque pion a un identifiant, qui peut être utile pour :\
 ### Attaque
 - (y,x) pour normale\
 - (y,x,n) pour attaque d’un étage de pyramide\
-forme: (TypeAttack, [(y, x, value_of_attack),… ], (y, x, value_attacked))
+forme: (TypeAttack, [Attacker (y, x, n)], Attacked (y, x, nattaque)), nattaque représente la partie attaquée, utile lors d’attaque contre pyramide
 
 
 ### Pyramide
