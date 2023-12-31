@@ -415,6 +415,18 @@ class Game:
                 available_moves += self.get_pawn_available_irregular_moves((value, form, team, i), y, x)
         return available_moves
 
+    def update_fast_move(self, i):
+        value = self.value_by_id[i]
+        form = self.form_by_id[i]
+        team = self.team_by_id[i]
+        (y, x) = self.locations[i]
+        if team == self.player_turn:
+            self.fast_moves[i] = self.get_pawn_available_regular_moves((value, form, team, i), y, x) + self.get_pawn_available_irregular_moves((value, form, team, i), y, x)
+
+    def init_fast_moves(self):
+        for i in range(self.initial_number_of_pieces):
+            self.update_fast_move(i)
+
     def is_alive(self, nid):
         return self.locations[nid] != -1
 
@@ -1069,12 +1081,16 @@ class Game:
 
         print(f'Temps d\'initialisation : {time.time() - self.start_time:.3}s')
         nbr_coups = 0
+
+        self.fast_moves = {}
+        self.init_fast_moves()
         for j in range(1, 1000):  # ne sert à rien de dépasser 2000
             if self.stop:
                 break
-            pre_aim_attacks = self.get_attacks_with_aim_shooter()  # assez rapide (100 execution par boucle, +1.5 sec)
 
+            pre_aim_attacks = self.get_attacks_with_aim_shooter()  # assez rapide (100 execution par boucle, +1.5 sec)
             coups = self.get_game_available_moves()  # lent (100 execution par boucle, +110 sec) devenu moyen + 25 sec
+
             # print(j, len(coups))
             nbr_coups += len(coups)
             if len(coups) == 0:
@@ -1085,6 +1101,7 @@ class Game:
             self.update_aim_shooter()  # moyen (100 execution par boucle, +15 sec)
             # self.detect_siege assez apide (100 exectuions par boucle, +3 sec)
             aim_attacks = self.get_attacks_with_aim_shooter() + self.detect_siege()
+
 
             available_aim_attacks = aim_attacks
             for no in pre_aim_attacks:
@@ -1097,7 +1114,8 @@ class Game:
             self.game_attacks[self.turn] = available_aim_attacks
             self.execute_all_attacks(available_aim_attacks)
 
-            self.check_end()
+
+            self.check_end() # moyen, +10 sec/100 exe par boucle
             self.end_turn()
 
         # print_board(self.board)
