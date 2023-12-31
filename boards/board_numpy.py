@@ -165,3 +165,15 @@ for j in range(2, 5+2):
 print(value_by_id)
 print(form_by_id)
 print(team_by_id)
+
+id_board = np.full((16, 8), -1)
+nid = 0
+for y in range(16):
+    for x in range(8):
+        if values[y][x] != -1:
+            id_board[y][x] = nid
+            nid+=1
+
+f = open("id_board.json", "w")
+f.write(json.dumps(id_board.tolist()))
+f.close()
