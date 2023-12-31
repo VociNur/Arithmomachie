@@ -62,3 +62,9 @@ Les pyramides ont pour identifiant : blanche id 37, noire id 11\
 Et chacune des pièces reçoit aussi un identifiant, allant de 48 à 53 pour la blanche, 54 à 58 pour la noire\
 59 pièces au total
 
+### Enregistrement des parties
+A chaque tour sont enregistrés :
+- Le tableau
+- les attaques
+- Le mouvement de la pièce
+- La position d’arrivée de la pièce dans un dictionnaire
