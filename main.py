@@ -419,13 +419,30 @@ class Game:
         value = self.value_by_id[i]
         form = self.form_by_id[i]
         team = self.team_by_id[i]
-        (y, x) = self.locations[i]
-        if team == self.player_turn:
+        if self.is_alive(i):
+            (y, x) = self.locations[i]
             self.fast_moves[i] = self.get_pawn_available_regular_moves((value, form, team, i), y, x) + self.get_pawn_available_irregular_moves((value, form, team, i), y, x)
-
+        else:
+            self.fast_moves[i] = []
     def init_fast_moves(self):
-        for i in range(self.initial_number_of_pieces):
+        for i in range(self.initial_number_of_real_pieces):
             self.update_fast_move(i)
+
+    def update_fast_moves(self):
+        ((old_y, old_x), (current_y, current_x)) = self.last_move
+        neighbours = np.unique(self.get_pieces_to_check_for_siege(old_y, old_x) + self.get_pieces_to_check_for_siege(current_y, current_x) + self.board[current_y][current_x])
+        for i in neighbours:
+            if i < FIRST_FAKE_ID_WHITE:
+                self.update_fast_move(i)
+
+    def get_value_fast_moves(self):
+        res = []
+        for i in range(self.initial_number_of_real_pieces):
+            if i < FIRST_FAKE_ID_WHITE and self.is_alive(i):
+                for coup in self.fast_moves[i]:
+                    res.append(coup)
+        return res
+
 
     def is_alive(self, nid):
         return self.locations[nid] != -1
@@ -1037,29 +1054,14 @@ class Game:
         self.locations = {}  # Permet de connaître la position d’une pièce, -1 si elle n’existe plus
         self.aim = {}  # Optimisation, attack, pièce qu’elle attaque
         self.shooter = {}  # Optimisation, defense, pièce qui l’attaque
-        self.value_by_id = {0: 49, 1: 121, 2: 225, 3: 163, 4: 28, 5: 66, 6: 36, 7: 30, 8: 59, 9: 64, 10: 120, 11: 190,
-                            12: 16, 13: 12,
-                            14: 9, 15: 25, 16: 49, 17: 81, 18: 90, 19: 100, 20: 3, 21: 5, 22: 7, 23: 9, 24: 8, 25: 6,
-                            26: 4, 27: 2, 28: 81,
-                            29: 72, 30: 64, 31: 36, 32: 16, 33: 4, 34: 6, 35: 9, 36: 153, 37: 91, 38: 49, 39: 42,
-                            40: 20, 41: 25, 42: 45,
-                            43: 15, 44: 289, 45: 169, 46: 81, 47: 25, 48: 1, 49: 4, 50: 9, 51: 16, 52: 25, 53: 36,
-                            54: 16, 55: 25, 56: 36,
-                            57: 49, 58: 64}
-        self.form_by_id = {0: 3, 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 2, 7: 2, 8: 2, 9: 2, 10: 3, 11: 4, 12: 2, 13: 2,
-                           14: 1, 15: 1, 16: 1,
-                           17: 1, 18: 2, 19: 2, 20: 1, 21: 1, 22: 1, 23: 1, 24: 1, 25: 1, 26: 1, 27: 1, 28: 2, 29: 2,
-                           30: 1, 31: 1, 32: 1,
-                           33: 1, 34: 2, 35: 2, 36: 3, 37: 4, 38: 2, 39: 2, 40: 2, 41: 2, 42: 3, 43: 3, 44: 3, 45: 3,
-                           46: 3, 47: 3, 48: 1,
-                           49: 1, 50: 2, 51: 2, 52: 3, 53: 3, 54: 1, 55: 2, 56: 2, 57: 3, 58: 3}
-        self.team_by_id = {0: 1, 1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 12: 1, 13: 1,
-                           14: 1, 15: 1, 16: 1,
-                           17: 1, 18: 1, 19: 1, 20: 1, 21: 1, 22: 1, 23: 1, 24: 0, 25: 0, 26: 0, 27: 0, 28: 0, 29: 0,
-                           30: 0, 31: 0, 32: 0,
-                           33: 0, 34: 0, 35: 0, 36: 0, 37: 0, 38: 0, 39: 0, 40: 0, 41: 0, 42: 0, 43: 0, 44: 0, 45: 0,
-                           46: 0, 47: 0, 48: 0,
-                           49: 0, 50: 0, 51: 0, 52: 0, 53: 0, 54: 1, 55: 1, 56: 1, 57: 1, 58: 1}
+
+        self.value_by_id = np.array([49, 121, 225, 163, 28, 66, 36, 30, 59, 64, 120, 190, 16, 12, 9, 25, 49, 81, 90, 100, 3, 5, 7, 9, 8, 6, 4, 2,
+         81, 72, 64, 36, 16, 4, 6, 9, 153, 91, 49, 42, 20, 25, 45, 15, 289, 169, 81, 25, 1, 4, 9, 16, 25, 36, 16, 25,
+         36, 49, 64])
+        self.form_by_id = np.array([3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 3, 4, 2, 2, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 2, 2, 3,
+         4, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 1, 1, 2, 2, 3, 3, 1, 2, 2, 3, 3])
+        self.team_by_id = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
         self.moves_by_id = {}
         self.pieces_in_opponent_site = [[], []]
 
@@ -1082,8 +1084,8 @@ class Game:
         print(f'Temps d\'initialisation : {time.time() - self.start_time:.3}s')
         nbr_coups = 0
 
-        self.fast_moves = {}
-        self.init_fast_moves()
+        #self.fast_moves = {}
+        #self.init_fast_moves()
         for j in range(1, 1000):  # ne sert à rien de dépasser 2000
             if self.stop:
                 break
@@ -1095,13 +1097,15 @@ class Game:
             nbr_coups += len(coups)
             if len(coups) == 0:
                 break
+            #value_fast_move = self.get_value_fast_moves()
+            #if len(coups) != len(value_fast_move):
+            #    print("ERROR", len(coups), len(value_fast_move))
             coup = coups[random.randint(0, len(coups) - 1)]
             self.move(coup)
-
+            #self.update_fast_moves()
             self.update_aim_shooter()  # moyen (100 execution par boucle, +15 sec)
             # self.detect_siege assez apide (100 exectuions par boucle, +3 sec)
             aim_attacks = self.get_attacks_with_aim_shooter() + self.detect_siege()
-
 
             available_aim_attacks = aim_attacks
             for no in pre_aim_attacks:
@@ -1113,7 +1117,6 @@ class Game:
             self.game_attacks.append([])
             self.game_attacks[self.turn] = available_aim_attacks
             self.execute_all_attacks(available_aim_attacks)
-
 
             self.check_end() # moyen, +10 sec/100 exe par boucle
             self.end_turn()
@@ -1142,9 +1145,11 @@ def launch_games(number):
     c = 0
     for i in range(number):
         game = Game()
+        while game.winner != -1:
+            game = Game()
         c+=game.time_exe
     c/=number
     print(f"FINAL TIME: {c:.3}s")
 
 
-launch_games(1)
+Game(view=True)
