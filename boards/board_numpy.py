@@ -166,6 +166,10 @@ print(value_by_id)
 print(form_by_id)
 print(team_by_id)
 
+print(list(value_by_id.values()))
+print(list(form_by_id.values()))
+print(list(team_by_id.values()))
+
 id_board = np.full((16, 8), -1)
 nid = 0
 for y in range(16):
