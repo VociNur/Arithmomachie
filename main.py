@@ -1152,4 +1152,4 @@ def launch_games(number):
     print(f"FINAL TIME: {c:.3}s")
 
 
-Game(view=True)
+Game(True)
