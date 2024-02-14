@@ -1,9 +1,9 @@
 
-import math
+from math import log
 import tkinter as tk
 
 import numpy as np
-import json
+from json import loads
 import random
 import time
 
@@ -27,6 +27,7 @@ FIRST_FAKE_ID_WHITE = FAKE_ID_WHITE[0]
 FAKE_ID_BLACK = list(range(54, 58 + 1))
 FIRST_FAKE_ID_BLACK = FAKE_ID_BLACK[0]
 
+SHOW_PRINT = False
 
 def clear_file(f: str):
     with open(f + ".txt", "w"):
@@ -43,13 +44,14 @@ def print_file(f: str, args):
 
 def is_power_or_root(a, b):
     if a <= 0 or b <= 0:
-        print("IS POWER OR ROOT ERROR", a, b)
+        if SHOW_PRINT:
+            print("IS POWER OR ROOT ERROR", a, b)
         return
     if a == b:
         return True
     elif a == 1 or b == 1:
         return False
-    return (math.log(b) / math.log(a)).is_integer() or (math.log(a) / math.log(b)).is_integer()
+    return (log(b) / log(a)).is_integer() or (log(a) / log(b)).is_integer()
 
 
 def a_is_equation(a, b, c):
@@ -65,13 +67,16 @@ def get_progression(a, b, c):
     t.sort()
     u, v, w = t
     if 2 * v == u + w:
-        print(f"aide: 2*{v} = {u}+{w}")
+        if SHOW_PRINT:
+            print(f"aide: 2*{v} = {u}+{w}")
         return 1  # arithmétique
     if v * v == u * w:
-        print(f"aide: {v}*{v} = {u}*{w}")
+        if SHOW_PRINT:
+            print(f"aide: {v}*{v} = {u}*{w}")
         return 2  # géométrique
     if v * (u + w) == 2 * u * w:
-        print(f"aide: {v}*({u}+{w}) = 2*{u}*{w}")
+        if SHOW_PRINT:
+            print(f"aide: {v}*({u}+{w}) = 2*{u}*{w}")
         return 3  # harmonique
     return 0
 
@@ -191,7 +196,8 @@ class Game:
                     color_attack = "pink"
                 elif type_attack == TypeAttack.SIEGE:
                     color_attack = "chocolate4"  # marron
-                print(attacks)
+                if SHOW_PRINT:
+                    print(attacks)
                 for attacker in attackers:
                     n = attacker
                     (y, x) = self.get_location_at_time(n, time)
@@ -261,7 +267,7 @@ class Game:
     def init_board(self):
         pre = "./boards/"
         f = open(pre + "id_board.json", "r")
-        self.board = np.array(json.loads(f.read()))
+        self.board = np.array(loads(f.read()))
         f.close()
 
     # Vérifie si la position est bien dans le jeu
@@ -373,7 +379,7 @@ class Game:
         return False
 
     # On récupère les mouvements irréguliers, juste à vérifier que la case finale est libre
-    def old_get_pawn_available_irregular_moves(self, nid, j, i):
+    def get_pawn_available_irregular_moves(self, nid, j, i):
         available_moves = []
         
         for u in [-1, 1]:  # décalage de 1
@@ -401,41 +407,6 @@ class Game:
                     available_moves += [((j, i), (u, -r))]
 
         return available_moves
-
-    
-    def is_irregular_move(self, move):
-        (j, i), (dj, di) = move
-        return self.in_board(j + dj, i+di) and self.is_empty(j + dj, i + di)
-    
-        # On récupère les mouvements irréguliers, juste à vérifier que la case finale est libre
-    def old2_get_pawn_available_irregular_moves(self, nid, j, i):
-        available_moves = []
-        if self.has_movement_of(nid, 2):
-            r = 2
-            add1 = map(lambda u, delta: ((j, i), (delta * r, u)), [1, 1, -1, -1], [1, -1, 1, -1]) 
-            add2 = map(lambda u, delta: ((j, i), (u, delta * r)), [1, 1, -1, -1], [1, -1, 1, -1])
-            filtered1 = filter(self.is_irregular_move, add1)
-            filtered2 = filter(self.is_irregular_move, add2)
-            available_moves += list(filtered1) + list(filtered2)
-        
-        if self.has_movement_of(nid, 3):
-            r = 3
-            add = list(map(lambda u, delta: ((j, i), (delta * r, u)), [1, 1, -1, -1], [1, -1, 1, -1])) + list(map(lambda u, delta: ((j, i), (u, delta * r)),  [1, 1, -1, -1], [1, -1, 1, -1]))
-            filtered = filter(self.is_irregular_move, add)
-            available_moves +=  list(filtered)
-        return available_moves
-    
-    # récupère tous les mouvements possibles dans un état
-    # Pour chaque case, si elle n’est pas vide, on récupère les mouvements régulier et irrégulier
-
-    def get_pawn_available_irregular_moves(self, nid, j ,i):
-        l1 = self.old_get_pawn_available_irregular_moves(nid, j, i)
-        l2 = self.old2_get_pawn_available_irregular_moves(nid, j, i)
-        if set(l1) != set(l2):
-            print(l1)
-            print(l2)
-            exit(0)
-        return l1
     
     def get_game_available_moves(self):
         available_moves = []  # 1 move = 2 couples (y, x)
@@ -1130,7 +1101,8 @@ class Game:
         self.winner = -1
         # self.test_new_board()
 
-        print(f'Temps d\'initialisation : {time.time() - self.start_time:.3}s')
+        if SHOW_PRINT:
+            print(f'Temps d\'initialisation : {time.time() - self.start_time:.3}s')
         nbr_coups = 0
 
         #self.fast_moves = {}
@@ -1173,11 +1145,14 @@ class Game:
             self.end_turn()
 
         # print_board(self.board)
-        print("Fin en", self.turn, "tours")
+        if SHOW_PRINT:
+            print("Fin en", self.turn, "tours")
         self.time_exe = time.time() - self.start_time
+        
         print(f'Temps d\'exécution : {self.time_exe:.3}s')
-        print("Coups joués ", j)
-        print("nbr_coups", nbr_coups / self.turn)
+        if SHOW_PRINT:
+            print("Coups joués ", j)
+            print("nbr_coups", nbr_coups / self.turn)
         if view:
             self.show_game()
 
@@ -1200,6 +1175,8 @@ def launch_games(number):
             game = Game()
         c+=game.time_exe
     c/=number
+    print("c", c)
+    print("number", number)
     print(f"FINAL TIME: {c:.3}s")
 
 launch_games(100)
