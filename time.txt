@@ -1,0 +1,2 @@
+sans map: 0.39 (100 tours) / 0.42
+sans map: 0.43 (1000 tours)

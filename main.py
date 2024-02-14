@@ -1,3 +1,4 @@
+
 import math
 import tkinter as tk
 
@@ -7,7 +8,7 @@ import random
 import time
 
 from functools import partial
-from pynput import keyboard
+from  pynput import keyboard
 from pynput.keyboard import Key, KeyCode
 
 from enums.type_attack import TypeAttack
@@ -17,6 +18,10 @@ width, height = (8, 16)
 length_of_data_pawn = 1
 ID_WHITE_PYRAMID = 37
 ID_BLACK_PYRAMID = 11
+
+WHITE_IDS = list(range(0, 24))
+BLACK_IDS = list(range(24, 48))
+
 FAKE_ID_WHITE = list(range(48, 53 + 1))
 FIRST_FAKE_ID_WHITE = FAKE_ID_WHITE[0]
 FAKE_ID_BLACK = list(range(54, 58 + 1))
@@ -157,10 +162,11 @@ class Game:
                 self.canvas.create_text(i * 50 + 25, j * 50 + 25, text=str(point) + "(" + str(nid) + ")",
                                         fill=color)
         # ligne
-        for j in range(1, self.height):
-            self.canvas.create_line(0, j * 50, self.width * 50, j * 50, fill="grey")
-        for i in range(1, self.width):
-            self.canvas.create_line(i * 50, 0, i * 50, self.height * 50, fill="grey")
+        
+        list(map( lambda j : self.canvas.create_line(0, j * 50, self.width * 50, j * 50, fill="grey"), range(1, self.height)))
+        
+        list(map (lambda i: self.canvas.create_line(i * 50, 0, i * 50, self.height * 50, fill="grey"), range(1, self.width)))
+            
 
         if time > 0:
             (y, x), (y2, x2) = self.move_history[time - 1]
@@ -274,9 +280,8 @@ class Game:
 
 
     # On récupère les mouvements réguliers, on doit vérifier que tout le trajet est libre
-    def get_pawn_available_regular_moves(self, pawn, j, i):
+    def get_pawn_available_regular_moves(self, nid, j, i):
         available_moves = []
-        (value, form, team, nid) = pawn
         if self.has_movement_of(nid, 1):  # c’est un rond
             relative_moves_circle = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
             for rm in relative_moves_circle:
@@ -322,8 +327,6 @@ class Game:
         return available_moves
 
     def has_pawn_available_regular_moves(self, nid):
-        form = self.form_by_id[nid]
-        team = self.team_by_id[nid]
         (j, i) = self.locations[nid]
         if self.has_movement_of(nid, 1):  # c’est un rond
             relative_moves_circle = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
@@ -370,11 +373,12 @@ class Game:
         return False
 
     # On récupère les mouvements irréguliers, juste à vérifier que la case finale est libre
-    def get_pawn_available_irregular_moves(self, pawn, j, i):
+    def old_get_pawn_available_irregular_moves(self, nid, j, i):
         available_moves = []
-        (value, form, team, nid) = pawn
+        
         for u in [-1, 1]:  # décalage de 1
             if self.has_movement_of(nid, 2):
+                #!! METTRE UN FILTER ICI +RAPIDE !!
                 r = 2
                 if self.in_board(j + r, i + u) and self.is_empty(j + r, i + u):
                     available_moves += [((j, i), (r, u))]
@@ -398,21 +402,57 @@ class Game:
 
         return available_moves
 
+    
+    def is_irregular_move(self, move):
+        (j, i), (dj, di) = move
+        return self.in_board(j + dj, i+di) and self.is_empty(j + dj, i + di)
+    
+        # On récupère les mouvements irréguliers, juste à vérifier que la case finale est libre
+    def old2_get_pawn_available_irregular_moves(self, nid, j, i):
+        available_moves = []
+        if self.has_movement_of(nid, 2):
+            r = 2
+            add1 = map(lambda u, delta: ((j, i), (delta * r, u)), [1, 1, -1, -1], [1, -1, 1, -1]) 
+            add2 = map(lambda u, delta: ((j, i), (u, delta * r)), [1, 1, -1, -1], [1, -1, 1, -1])
+            filtered1 = filter(self.is_irregular_move, add1)
+            filtered2 = filter(self.is_irregular_move, add2)
+            available_moves += list(filtered1) + list(filtered2)
+        
+        if self.has_movement_of(nid, 3):
+            r = 3
+            add = list(map(lambda u, delta: ((j, i), (delta * r, u)), [1, 1, -1, -1], [1, -1, 1, -1])) + list(map(lambda u, delta: ((j, i), (u, delta * r)),  [1, 1, -1, -1], [1, -1, 1, -1]))
+            filtered = filter(self.is_irregular_move, add)
+            available_moves +=  list(filtered)
+        return available_moves
+    
     # récupère tous les mouvements possibles dans un état
     # Pour chaque case, si elle n’est pas vide, on récupère les mouvements régulier et irrégulier
+
+    def get_pawn_available_irregular_moves(self, nid, j ,i):
+        l1 = self.old_get_pawn_available_irregular_moves(nid, j, i)
+        l2 = self.old2_get_pawn_available_irregular_moves(nid, j, i)
+        if set(l1) != set(l2):
+            print(l1)
+            print(l2)
+            exit(0)
+        return l1
+    
     def get_game_available_moves(self):
         available_moves = []  # 1 move = 2 couples (y, x)
         # pour toutes les cases non vides, on ajoute ses coups possibles dans la liste des coups
-        for i in range(self.initial_number_of_real_pieces):
+        
+        ids = []
+        if self.player_turn == 1:
+            ids = WHITE_IDS
+        else:
+            ids = BLACK_IDS
+        for i in ids:
             if not self.is_alive(i):
                 continue
-            value = self.value_by_id[i]
-            form = self.form_by_id[i]
-            team = self.team_by_id[i]
             (y, x) = self.locations[i]
-            if team == self.player_turn:
-                available_moves += self.get_pawn_available_regular_moves((value, form, team, i), y, x)
-                available_moves += self.get_pawn_available_irregular_moves((value, form, team, i), y, x)
+            available_moves += self.get_pawn_available_regular_moves(i, y, x)
+            available_moves += self.get_pawn_available_irregular_moves(i, y, x)
+        
         return available_moves
 
     def update_fast_move(self, i):
@@ -546,6 +586,12 @@ class Game:
         self.winner = n
         self.way_to_win = way
 
+    def get_new_all_neighbours_id_with_directions(self, y, x, not_considered=None):
+        if not_considered is None:
+            not_considered = []
+        neighbours = {}
+        #
+    
     def get_all_neighbours_id_with_directions(self, y, x, not_considered=None):
         if not_considered is None:
             not_considered = []
@@ -781,8 +827,6 @@ class Game:
         # print("turn", self.turn, same_line_or_column)
         # on regarde si n attaque m en mêlée, puis si m attaque n en mêlée
         for aid, bid in [(nid, mid), (mid, nid)]:
-            form = self.form_by_id[aid]
-            team = self.team_by_id[aid]
             if self.has_movement_of(nid, 1):  # c’est un rond
                 if (not same_line_or_column) and dist == 0:  # s’il attaque en vertical juste à côté de lui
                     self.add_melee_aim(aid, bid)
@@ -816,10 +860,15 @@ class Game:
         # elle n’est plus attaquée et n’attaque plus
         # print("-- 1 --")
         for floor_n in self.develop_pyramid(nid):
-            self.reset_links_of_pawn(floor_n)
+            self.reset_links_of_pawn(floor_n) #1000: + 1 sec
 
         # print("-- 2 --")
         # Puis, on ajoute les nouveaux voisins causés par la disparition de la pièce
+        
+            
+        
+        
+        
         neighbours = self.get_all_neighbours_id_with_directions(old_y, old_x, not_considered=[(current_y, current_x)])
         # print(neighbours)
         for (d1, d2) in [("n", "s"), ("ne", "so"), ("e", "o"), ("se", "no")]:
@@ -1023,7 +1072,7 @@ class Game:
 
     def detect_siege(self):
         attacks = []
-        (old_y, old_x), (current_y, current_x) = self.last_move
+        (_, _), (current_y, current_x) = self.last_move
         neighbours = self.get_pieces_to_check_for_siege(current_y, current_x)
         center_id = self.get_id_by_pos(current_y, current_x)
         team = self.team_by_id[center_id]
@@ -1088,11 +1137,12 @@ class Game:
         #self.init_fast_moves()
         for j in range(1, 1000):  # ne sert à rien de dépasser 2000
             if self.stop:
-                break
-
-            pre_aim_attacks = self.get_attacks_with_aim_shooter()  # assez rapide (100 execution par boucle, +1.5 sec)
-            coups = self.get_game_available_moves()  # lent (100 execution par boucle, +110 sec) devenu moyen + 25 sec
-
+                break      
+            pre_aim_attacks = self.get_attacks_with_aim_shooter()  # 1000 + 8s
+            
+                
+            #for i in range(1000):
+            coups = self.get_game_available_moves()  # 1000 + 200s
             # print(j, len(coups))
             nbr_coups += len(coups)
             if len(coups) == 0:
@@ -1103,8 +1153,8 @@ class Game:
             coup = coups[random.randint(0, len(coups) - 1)]
             self.move(coup)
             #self.update_fast_moves()
-            self.update_aim_shooter()  # moyen (100 execution par boucle, +15 sec)
-            # self.detect_siege assez apide (100 exectuions par boucle, +3 sec)
+            self.update_aim_shooter()  # 1000 + 300 secondes (?)
+            # self.detect_siege 1000 + 20s
             aim_attacks = self.get_attacks_with_aim_shooter() + self.detect_siege()
 
             available_aim_attacks = aim_attacks
@@ -1118,7 +1168,8 @@ class Game:
             self.game_attacks[self.turn] = available_aim_attacks
             self.execute_all_attacks(available_aim_attacks)
 
-            self.check_end() # moyen, +10 sec/100 exe par boucle
+            
+            self.check_end() # moyen, +100sec/1000 exe par boucle
             self.end_turn()
 
         # print_board(self.board)
@@ -1151,5 +1202,4 @@ def launch_games(number):
     c/=number
     print(f"FINAL TIME: {c:.3}s")
 
-
-Game(True)
+launch_games(100)
