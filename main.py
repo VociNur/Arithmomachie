@@ -6,6 +6,7 @@ import numpy as np
 from json import loads
 import random
 import time
+from timeit import timeit
 
 from functools import partial
 from  pynput import keyboard
@@ -384,7 +385,6 @@ class Game:
         
         for u in [-1, 1]:  # décalage de 1
             if self.has_movement_of(nid, 2):
-                #!! METTRE UN FILTER ICI +RAPIDE !!
                 r = 2
                 if self.in_board(j + r, i + u) and self.is_empty(j + r, i + u):
                     available_moves += [((j, i), (r, u))]
@@ -412,11 +412,8 @@ class Game:
         available_moves = []  # 1 move = 2 couples (y, x)
         # pour toutes les cases non vides, on ajoute ses coups possibles dans la liste des coups
         
-        ids = []
-        if self.player_turn == 1:
-            ids = WHITE_IDS
-        else:
-            ids = BLACK_IDS
+        ids = WHITE_IDS if self.player_turn else BLACK_IDS #Si c'est le joueur 1: blanc, sinon noir
+        
         for i in ids:
             if not self.is_alive(i):
                 continue
@@ -447,12 +444,10 @@ class Game:
                 self.update_fast_move(i)
 
     def get_value_fast_moves(self):
-        res = []
         for i in range(self.initial_number_of_real_pieces):
             if i < FIRST_FAKE_ID_WHITE and self.is_alive(i):
                 for coup in self.fast_moves[i]:
-                    res.append(coup)
-        return res
+                    yield coup
 
 
     def is_alive(self, nid):
@@ -607,6 +602,63 @@ class Game:
                 break
         return neighbours
 
+    def get_all_pairs_neighbours_id_with_directions(self, y, x, not_considered=None):
+        if not_considered is None:
+            not_considered = []
+        
+        # for direction in ["s", "n", "o", "e", "no", "ne", "so", "se"]:
+        #   neighbours[direction] = (-1, -1, -1)
+        first = None
+        has_first = False
+        for ay in range(y + 1, 16):
+            if not self.is_empty(ay, x) and (ay, x) not in not_considered:
+                first = self.board[ay][x]
+                has_first = True
+                break
+        if has_first:
+            for ay in range(y - 1, -1, -1):
+                if not self.is_empty(ay, x) and (ay, x) not in not_considered:
+                    yield (first, self.board[ay][x])
+                    break
+                
+        has_first = False        
+        for ax in range(x + 1, 8):
+            if not self.is_empty(y, ax) and (y, ax) not in not_considered:
+                first = self.board[y][ax]
+                has_first = True
+                break
+        
+        if has_first:
+            for ax in range(x - 1, -1, -1):
+                if not self.is_empty(y, ax) and (y, ax) not in not_considered:
+                    yield (first, self.board[y][ax])
+                    break
+        # UL
+        has_first = False
+        for dt in range(1, 1 + min(x, y)):
+            if not self.is_empty(y - dt, x - dt) and (y - dt, x - dt) not in not_considered:
+                first = self.board[y - dt][x - dt]
+                has_first = True
+                break
+        # UR        
+        if has_first:
+            for dt in range(1, 1 + min(7 - x, y)):
+                if not self.is_empty(y - dt, x + dt) and (y - dt, x + dt) not in not_considered:
+                    yield (first, self.board[y - dt][x + dt])
+                    break
+        # DL
+        has_first = False
+        for dt in range(1, 1 + min(x, 15 - y)):
+            if not self.is_empty(y + dt, x - dt) and (y + dt, x - dt) not in not_considered:
+                first = self.board[y + dt][x - dt]
+                has_first = True
+                break
+        # DR
+        if has_first:
+            for dt in range(1, 1 + min(7 - x, 15 - y)):
+                if not self.is_empty(y + dt, x + dt) and (y + dt, x + dt) not in not_considered:
+                    yield (first, self.board[y + dt][x + dt])
+                    break
 
     def check_end(self):
         for team in [0, 1]:
@@ -817,6 +869,7 @@ class Game:
                     # print("melee ", aid, bid)
 
     def update_aim_shooter(self):
+        #même fonctio nque update_aim_shooter, mais si il n'y a personne au nord, il ne va pas chercher ce qu'il y a au sud
         (old_y, old_x), (current_y, current_x) = self.last_move
         nid = self.board[current_y][current_x] # identifiant de la pièce déplacée
         # print("------------------------------------------")
@@ -836,9 +889,61 @@ class Game:
         # print("-- 2 --")
         # Puis, on ajoute les nouveaux voisins causés par la disparition de la pièce
         
+        neighbours = self.get_all_pairs_neighbours_id_with_directions(old_y, old_x, not_considered=[(current_y, current_x)])
+
+        # print(neighbours)
+        for (a_id, b_id) in neighbours:
             
-        
-        
+                # a et b peuvent être des pyramides
+                for floor_a in self.develop_pyramid(a_id):
+                    for floor_b in self.develop_pyramid(b_id):
+                        self.add_line(floor_a, floor_b)
+        # On considère l’arrivée de la pièce
+        # les pièces nord-sud ne se touchent plus, etc...
+
+        # print("-- 3 --")
+        neighbours = self.get_all_neighbours_id_with_directions(current_y, current_x)
+        for (d1, d2) in [("n", "s"), ("ne", "so"), ("e", "o"), ("se", "no")]:
+            if d1 in neighbours and d2 in neighbours:
+                aid = neighbours[d1]
+                bid = neighbours[d2]
+                for floor_a in self.develop_pyramid(aid):
+                    for floor_b in self.develop_pyramid(bid):
+                        self.remove_nid_from_mid_aim(floor_a, floor_b)
+                        self.remove_nid_from_mid_aim(floor_b, floor_a)
+                        self.remove_nid_from_mid_shooter(floor_a, floor_b)
+                        self.remove_nid_from_mid_shooter(floor_b, floor_a)
+
+        # Mais la pièce va toucher ses voisins
+
+        # print("-- 4 --")
+        for direction in ["n", "s", "e", "o", "ne", "no", "se", "so"]:
+            if direction in neighbours:
+                bid = neighbours[direction]
+
+                for floor_n in self.develop_pyramid(nid):
+                    for floor_b in self.develop_pyramid(bid):
+                        self.add_line(floor_n, floor_b)
+
+    def old_update_aim_shooter(self):
+        (old_y, old_x), (current_y, current_x) = self.last_move
+        nid = self.board[current_y][current_x] # identifiant de la pièce déplacée
+        # print("------------------------------------------")
+        # print("Tour: ", self.turn)
+        # print(self.aim)
+        # print(self.shooter)
+        # print("Début tour, pièce: ", nid)
+
+        # !!! Dans toute cette partie de code, la pièce est déjà posée au nouvel endroit !!!
+
+        # on considère la disparition de la pièce
+        # elle n’est plus attaquée et n’attaque plus
+        # print("-- 1 --")
+        for floor_n in self.develop_pyramid(nid):
+            self.reset_links_of_pawn(floor_n) #1000: + 1 sec
+
+        # print("-- 2 --")
+        # Puis, on ajoute les nouveaux voisins causés par la disparition de la pièce
         
         neighbours = self.get_all_neighbours_id_with_directions(old_y, old_x, not_considered=[(current_y, current_x)])
         # print(neighbours)
@@ -903,16 +1008,17 @@ class Game:
                     res.append(i)
 
         return res
-
+    
+    
+    
     def develop_list_pyramid(self, pieces):
         res = []
         for piece in pieces:
             res += self.develop_pyramid(piece)
-        return res
+        return res    
 
     # à revoir, idée bonne mais même problème que la fonction au dessus
     def couple_develop_pyramid(self, id_pieces: list[int]):
-        res = []
         #if self.winner!=-1:
             # print("id_picees", id_pieces, self.develop_list_pyramid(id_pieces))
         id_pieces = self.develop_list_pyramid(id_pieces)  # on ne récupère que les étages dans le jeu
@@ -935,10 +1041,11 @@ class Game:
                     continue
                 if piece_j in FAKE_ID_WHITE and piece_i in FAKE_ID_WHITE:
                     continue
-                res.append((piece_i, piece_j))
-        return res
+                yield (piece_i, piece_j)
 
-    def get_attacks_with_aim_shooter(self):
+
+    def get_attacks_with_aim_shooter(self): 
+        #! Pas possible de yield ni set car il y a des listes à l'intérieur
         attacks = []
         # attaque de mêlée
         # attaque MEET et GALLOWS
@@ -983,6 +1090,8 @@ class Game:
             for shooter_i in self.get_ranged_shooter(n_piece):
                 attacks.append((TypeAttack.ASSAULT, [shooter_i], n_piece))
         return attacks
+    
+    
 
     def check_pyramid_has_form(self, nid, required_form):
         if nid == ID_WHITE_PYRAMID:
@@ -1003,44 +1112,42 @@ class Game:
         return form == required_form or (form == 4 and self.check_pyramid_has_form(nid, required_form))
 
     def get_pieces_to_check_for_siege(self, y, x):
-        pieces = []
-        # for direction in ["s", "n", "o", "e", "no", "ne", "so", "se"]:
-        #   neighbours[direction] = (-1, -1, -1)
-
-        for ay in range(y + 1, min(y + 3 + 1, 16)):
-            if not self.is_empty(ay, x):
-                # il y a une pièce
-                check_id = self.board[ay][x]
-                if self.has_movement_of(check_id, 2) or self.has_movement_of(check_id, 3):
-                    pieces.append(check_id)
-                break
-        for ay in range(y - 1, max(y - 3 - 1, -1), -1):
-            if not self.is_empty(ay, x):
-                check_id = self.board[ay][x]
-                if self.has_movement_of(check_id, 2) or self.has_movement_of(check_id, 3):
-                    pieces.append(check_id)
-                break
-        for ax in range(x + 1, min(x + 3 + 1, 8)):
-            if not self.is_empty(y, ax):
-                check_id = self.board[y][ax]
-                if self.has_movement_of(check_id, 2) or self.has_movement_of(check_id, 3):
-                    pieces.append(check_id)
-                break
-        for ax in range(x - 1, max(x - 3 - 1, -1), -1):
-            if not self.is_empty(y, ax):
-                check_id = self.board[y][ax]
-                if self.has_movement_of(check_id, 2) or self.has_movement_of(check_id, 3):
-                    pieces.append(check_id)
-                break
-        # diag
-        for dt in [(-1, -1), (-1, 1), (1, 1), (1, -1)]:
-            dy, dx = dt
-            if self.in_board(y + dy, x + dx) and not self.is_empty(y + dy, x + dx):
-                check_id = self.board[y + dy][x + dx]
-                if self.has_movement_of(check_id, 1):
-                    pieces.append(check_id)
-        return pieces
-
+            
+            # for direction in ["s", "n", "o", "e", "no", "ne", "so", "se"]:
+            #   neighbours[direction] = (-1, -1, -1)
+            for ay in range(y + 1, min(y + 3 + 1, 16)):
+                if not self.is_empty(ay, x):
+                    # il y a une pièce
+                    check_id = self.board[ay][x]
+                    if self.has_movement_of(check_id, 2) or self.has_movement_of(check_id, 3):
+                        yield check_id
+                    break
+            for ay in range(y - 1, max(y - 3 - 1, -1), -1):
+                if not self.is_empty(ay, x):
+                    check_id = self.board[ay][x]
+                    if self.has_movement_of(check_id, 2) or self.has_movement_of(check_id, 3):
+                        yield check_id
+                    break
+            for ax in range(x + 1, min(x + 3 + 1, 8)):
+                if not self.is_empty(y, ax):
+                    check_id = self.board[y][ax]
+                    if self.has_movement_of(check_id, 2) or self.has_movement_of(check_id, 3):
+                        yield check_id
+                    break
+            for ax in range(x - 1, max(x - 3 - 1, -1), -1):
+                if not self.is_empty(y, ax):
+                    check_id = self.board[y][ax]
+                    if self.has_movement_of(check_id, 2) or self.has_movement_of(check_id, 3):
+                        yield check_id
+                    break
+            # diag
+            for dt in [(-1, -1), (-1, 1), (1, 1), (1, -1)]:
+                dy, dx = dt
+                if self.in_board(y + dy, x + dx) and not self.is_empty(y + dy, x + dx):
+                    check_id = self.board[y + dy][x + dx]
+                    if self.has_movement_of(check_id, 1):
+                        yield check_id
+    
     def detect_siege(self):
         attacks = []
         (_, _), (current_y, current_x) = self.last_move
@@ -1107,14 +1214,16 @@ class Game:
 
         #self.fast_moves = {}
         #self.init_fast_moves()
-        for j in range(1, 1000):  # ne sert à rien de dépasser 2000
+        self.max_turn = 1000
+        for _ in range(0, self.max_turn):  # ne sert à rien de dépasser 2000
             if self.stop:
                 break      
-            pre_aim_attacks = self.get_attacks_with_aim_shooter()  # 1000 + 8s
+            #for i in range(1000):
+            pre_aim_attacks = self.get_attacks_with_aim_shooter() # 1000 + 13s
             
                 
             #for i in range(1000):
-            coups = self.get_game_available_moves()  # 1000 + 200s
+            coups = self.get_game_available_moves()  # 1000 + 100s
             # print(j, len(coups))
             nbr_coups += len(coups)
             if len(coups) == 0:
@@ -1125,7 +1234,8 @@ class Game:
             coup = coups[random.randint(0, len(coups) - 1)]
             self.move(coup)
             #self.update_fast_moves()
-            self.update_aim_shooter()  # 1000 + 300 secondes (?)
+            #for i in range(1000):
+            self.update_aim_shooter()  # 1000 + 100 secondes (?)
             # self.detect_siege 1000 + 20s
             aim_attacks = self.get_attacks_with_aim_shooter() + self.detect_siege()
 
@@ -1133,6 +1243,7 @@ class Game:
             for no in pre_aim_attacks:
                 if no in aim_attacks:
                     available_aim_attacks.remove(no)
+                
             # for i in available_aim_attacks:
             #    print("AIMSHOOTER detects ", self.turn, ": ", str(i))
 
@@ -1141,17 +1252,22 @@ class Game:
             self.execute_all_attacks(available_aim_attacks)
 
             
+            #for i in range(1000):
             self.check_end() # moyen, +100sec/1000 exe par boucle
             self.end_turn()
 
         # print_board(self.board)
+        self.is_finished = self.turn == self.max_turn
+        if SHOW_PRINT:
+            print(self.turn, self.max_turn)
+            print(f"Finished: {self.is_finished}")
         if SHOW_PRINT:
             print("Fin en", self.turn, "tours")
         self.time_exe = time.time() - self.start_time
         
         print(f'Temps d\'exécution : {self.time_exe:.3}s')
         if SHOW_PRINT:
-            print("Coups joués ", j)
+            print("Coups joués ", self.turn)
             print("nbr_coups", nbr_coups / self.turn)
         if view:
             self.show_game()
@@ -1167,16 +1283,17 @@ def find_win():
                 break
 
 
-def launch_games(number):
+def launch_games(number, must_be_completed = False):
     c = 0
     for i in range(number):
         game = Game()
-        while game.winner != -1:
-            game = Game()
+        
+        if must_be_completed:
+            while not game.is_finished:
+                game = Game()
         c+=game.time_exe
     c/=number
-    print("c", c)
-    print("number", number)
     print(f"FINAL TIME: {c:.3}s")
 
-launch_games(100)
+launch_games(5, True)
+
