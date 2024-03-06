@@ -140,7 +140,7 @@ class Game:
         return self.get_location_at_time(nid, time) != -1
 
     def init_view(self, time):
-        self.canvas.delete("all")
+        self.canvas.delete("suppress")
         for nid in range(self.initial_number_of_real_pieces):
             if not self.is_alive_at_time(nid, time):
                 continue
@@ -153,31 +153,26 @@ class Game:
             if form == 1:
                 self.canvas.create_oval(i * 50 + 5, j * 50 + 5, (i + 1) * 50 - 5, (j + 1) * 50 - 5,
                                         outline=color,
-                                        fill="WHITE", width=2)
+                                        fill="WHITE", width=2, tags="suppress")
             if form == 2:
                 dp = np.array([(-20, 20), (20, 20), (0, -20)])
                 points = (i * 50 + 25, j * 50 + 25) + dp
-                self.canvas.create_polygon(points.flatten().tolist(), outline=color, fill="WHITE", width=2)
+                self.canvas.create_polygon(points.flatten().tolist(), outline=color, fill="WHITE", width=2, tags="suppress")
             if form == 3:
                 self.canvas.create_rectangle(i * 50 + 5, j * 50 + 5, (i + 1) * 50 - 5, (j + 1) * 50 - 5,
-                                             outline=color, fill="WHITE", width=2)
+                                             outline=color, fill="WHITE", width=2, tags="suppress")
 
             if form <= 3:
-                self.canvas.create_text(i * 50 + 25, j * 50 + 25, text=str(point) + "(" + str(nid) + ")")
+                self.canvas.create_text(i * 50 + 25, j * 50 + 25, text=str(point) + "(" + str(nid) + ")", tags="suppress")
             else:
                 self.canvas.create_text(i * 50 + 25, j * 50 + 25, text=str(point) + "(" + str(nid) + ")",
-                                        fill=color)
-        # ligne
-        
-        list(map( lambda j : self.canvas.create_line(0, j * 50, self.width * 50, j * 50, fill="grey"), range(1, self.height)))
-        
-        list(map (lambda i: self.canvas.create_line(i * 50, 0, i * 50, self.height * 50, fill="grey"), range(1, self.width)))
+                                        fill=color, tags="suppress")
             
 
         if time > 0:
             (y, x), (y2, x2) = self.move_history[time - 1]
             self.canvas.create_line(x * 50 + 25, y * 50 + 25, x2 * 50 + 25, y2 * 50 + 25, arrow=tk.LAST,
-                                    fill="GREEN", width=2)
+                                    fill="GREEN", width=2, tags="suppress")
             for attacks in self.game_attacks[self.iview - 1]:
                 (type_attack, attackers, attacked) = attacks
                 n2 = attacked
@@ -203,7 +198,7 @@ class Game:
                     n = attacker
                     (y, x) = self.get_location_at_time(n, time)
                     self.canvas.create_line(x * 50 + 25, y * 50 + 25, x2 * 50 + 25, y2 * 50 + 25, arrow=tk.LAST,
-                                            fill=color_attack, width=2)
+                                            fill=color_attack, width=2, tags="suppress")
 
         self.canvas.update()
 
@@ -243,6 +238,12 @@ class Game:
         # self.display.columnconfigure(1, weight=1)
 
         self.canvas = tk.Canvas(self.display, width=400, height=800, bg='#FFFFFF')
+        # ligne
+        
+        list(map( lambda j : self.canvas.create_line(0, j * 50, self.width * 50, j * 50, fill="grey"), range(1, self.height)))
+        
+        list(map (lambda i: self.canvas.create_line(i * 50, 0, i * 50, self.height * 50, fill="grey"), range(1, self.width)))
+        
         self.init_view(0)
         self.canvas.pack(side="left")
         # Comme fichier sroll_frame
@@ -1161,6 +1162,8 @@ class Game:
                 attacks.append((TypeAttack.SIEGE, [center_id], nid))
         return attacks
 
+    
+
     def __init__(self, view=False):
         self.start_time = time.time()
         self.board = []  #id
@@ -1295,5 +1298,5 @@ def launch_games(number, must_be_completed = False):
     c/=number
     print(f"FINAL TIME: {c:.3}s")
 
-launch_games(5, True)
+Game(True)
 
