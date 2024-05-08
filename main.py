@@ -4,7 +4,6 @@ import tkinter as tk
 
 import numpy as np
 from json import loads
-import random
 import time
 from timeit import timeit
 
@@ -13,6 +12,7 @@ from  pynput import keyboard
 from pynput.keyboard import Key, KeyCode
 
 from enums.type_attack import TypeAttack
+import random
 
 width, height = (8, 16)
 
@@ -20,8 +20,8 @@ length_of_data_pawn = 1
 ID_WHITE_PYRAMID = 37
 ID_BLACK_PYRAMID = 11
 
-WHITE_IDS = list(range(0, 24))
-BLACK_IDS = list(range(24, 48))
+BLACK_ID = list(range(0, 24))
+WHITE_ID = list(range(24, 48))
 
 FAKE_ID_WHITE = list(range(48, 53 + 1))
 FIRST_FAKE_ID_WHITE = FAKE_ID_WHITE[0]
@@ -83,6 +83,63 @@ def get_progression(a, b, c):
 
 
 class Game:
+    #fonctions d'évaluation, les pyramides sont comptées un peu double
+    def piece_number(self):
+        nbr_white = sum(map(lambda i:self.is_alive(i), WHITE_ID))
+        nbr_pyr_white = sum(map(lambda i:self.is_alive(i), FAKE_ID_WHITE))
+
+        nbr_black = sum(map(lambda i:self.is_alive(i), BLACK_ID))
+        nbr_pyr_black = sum(map(lambda i:self.is_alive(i), FAKE_ID_BLACK))
+        #return (nbr_white, nbr_pyr_white, nbr_black, nbr_pyr_black)
+        return (nbr_white + nbr_pyr_white, nbr_black + nbr_pyr_black)
+
+    def piece_rate(self):
+        a,b = self.piece_number()
+        return (a/30, b/29)
+
+    def piece_sum(self):
+        sum_white = sum(map(lambda i:self.value_by_id(i), WHITE_ID))
+        sum_pyr_white = sum(map(lambda i:self.value_by_id(i), FAKE_ID_WHITE))
+
+        sum_black = sum(map(lambda i:self.value_by_id(i), BLACK_ID))
+        sum_pyr_black = sum(map(lambda i:self.value_by_id(i), FAKE_ID_BLACK))
+        return (sum_white + sum_pyr_white, sum_black + sum_pyr_black)
+
+    def isobarycenter(self, player):
+        id_pawns = BLACK_ID if player else WHITE_ID
+        x, y, n = 0, 0, 0
+        for i in id_pawns:
+            if self.is_alive(i):
+                n=n+1
+                y=self.locations[i][0] + y
+                x=self.locations[i][1] + x
+                
+        return (y/n, x/n)
+    
+    def dispersion(self, player):
+        id_pawns = BLACK_ID if player else WHITE_ID
+        ey, ex = self.isobarycenter(player)
+        dx, dy, n = 0, 0, 0
+        for i in id_pawns:
+            if self.is_alive(i):
+                n=n+1
+                dy=(self.locations[i][0]-ey)**2 + dy
+                dx=(self.locations[i][1]-ex)**2 + dx
+        return (dy/n, dx/n)
+    
+    def progress(self, player):
+        id_pawns = BLACK_ID if player else WHITE_ID
+        repere =  0 if player else 15
+        y, n = 0, 0
+        #print("player", player)
+        for i in id_pawns:
+            if self.is_alive(i):
+                #print(repere)
+                #print(i, ":", abs(repere - self.locations[i][1]))
+                n=n+1
+                y= abs(repere - self.locations[i][0]) + y
+        
+        return y
 
     def update_view(self):
         self.init_view(self.iview)
@@ -102,7 +159,7 @@ class Game:
         self.update_view()
 
     def on_press_key(self, key):
-        if not self.view:
+        if not self.save_game:
             print("Pas de view")
             return
         if self.turn > 100:
@@ -226,7 +283,7 @@ class Game:
         self.canvas2.yview_scroll(int(-1 * (event.delta / 60)), "units")
 
     def show_game(self):
-        if not self.view:
+        if not self.save_game:
             return
         self.iview = self.turn
 
@@ -413,7 +470,7 @@ class Game:
         available_moves = []  # 1 move = 2 couples (y, x)
         # pour toutes les cases non vides, on ajoute ses coups possibles dans la liste des coups
         
-        ids = WHITE_IDS if self.player_turn else BLACK_IDS #Si c'est le joueur 1: blanc, sinon noir
+        ids = BLACK_ID if self.player_turn else WHITE_ID #Si c'est le joueur 1: blanc, sinon noir
         
         for i in ids:
             if not self.is_alive(i):
@@ -455,7 +512,7 @@ class Game:
         return self.locations[nid] != -1
 
     # permet de déplacer une pièce
-    def move(self, rel_move):
+    def move_piece(self, rel_move):
         ((y, x), (dy, dx)) = rel_move
         nid = self.board[y][x]
 
@@ -464,11 +521,12 @@ class Game:
         self.board[y][x] = -1
         # Enregistre le coup
         self.last_move = ((y, x), (y + dy, x + dx))
-        if self.view:
+        if self.save_game:
             self.move_history.append(((y, x), (y + dy, x + dx)))
 
         # Met à jour pour aim/shooter
         self.locations[self.board[y + dy][x + dx]] = (y + dy, x + dx)  # je trouve ça fun comme ligne
+        #print(y+dy, x+dx)
         self.moves_by_id[self.board[y + dy][x + dx]][self.turn] = (y + dy, x + dx)
         if nid == ID_WHITE_PYRAMID:
             for i in FAKE_ID_WHITE:
@@ -1162,9 +1220,9 @@ class Game:
                 attacks.append((TypeAttack.SIEGE, [center_id], nid))
         return attacks
 
-    
 
-    def __init__(self, view=False):
+
+    def __init__(self, view=False, auto = False):
         self.start_time = time.time()
         self.board = []  #id
         self.init_board()
@@ -1177,6 +1235,7 @@ class Game:
         self.stop = False
         self.last_move = ((-1, -1), (-1, -1))
         self.view = view
+        self.save_game = True
         self.move_history = []
         # game_attacks est toujours sauvegardé
         self.game_attacks = []  # l’élément i représente l’ensemble des attaques après le coup i, une attaque est sous
@@ -1217,49 +1276,19 @@ class Game:
 
         #self.fast_moves = {}
         #self.init_fast_moves()
+        if not auto:
+            return
         self.max_turn = 1000
         for _ in range(0, self.max_turn):  # ne sert à rien de dépasser 2000
             if self.stop:
                 break      
-            #for i in range(1000):
-            pre_aim_attacks = self.get_attacks_with_aim_shooter() # 1000 + 13s
             
-                
-            #for i in range(1000):
-            coups = self.get_game_available_moves()  # 1000 + 100s
-            # print(j, len(coups))
-            nbr_coups += len(coups)
+            coups =  self.get_game_available_moves()
             if len(coups) == 0:
                 break
-            #value_fast_move = self.get_value_fast_moves()
-            #if len(coups) != len(value_fast_move):
-            #    print("ERROR", len(coups), len(value_fast_move))
-            coup = coups[random.randint(0, len(coups) - 1)]
-            self.move(coup)
-            #self.update_fast_moves()
-            #for i in range(1000):
-            self.update_aim_shooter()  # 1000 + 100 secondes (?)
-            # self.detect_siege 1000 + 20s
-            aim_attacks = self.get_attacks_with_aim_shooter() + self.detect_siege()
-
-            available_aim_attacks = aim_attacks
-            for no in pre_aim_attacks:
-                if no in aim_attacks:
-                    available_aim_attacks.remove(no)
-                
-            # for i in available_aim_attacks:
-            #    print("AIMSHOOTER detects ", self.turn, ": ", str(i))
-
-            self.game_attacks.append([])
-            self.game_attacks[self.turn] = available_aim_attacks
-            self.execute_all_attacks(available_aim_attacks)
-
-            
-            #for i in range(1000):
-            self.check_end() # moyen, +100sec/1000 exe par boucle
-            self.end_turn()
-
-        # print_board(self.board)
+            coup = coups[random.randint(0, len(coups)-1)]
+            self.play_move(coup)
+            # print_board(self.board)
         self.is_finished = self.turn == self.max_turn
         if SHOW_PRINT:
             print(self.turn, self.max_turn)
@@ -1275,6 +1304,40 @@ class Game:
         if view:
             self.show_game()
 
+    def play_move(self, move):
+        #for i in range(1000):
+        pre_aim_attacks = self.get_attacks_with_aim_shooter() # 1000 + 13s
+        
+        # print(j, len(coups))
+
+        #value_fast_move = self.get_value_fast_moves()
+        #if len(coups) != len(value_fast_move):
+        #    print("ERROR", len(coups), len(value_fast_move))
+        
+        self.move_piece(move)
+        #self.update_fast_moves()
+        #for i in range(1000):
+        self.update_aim_shooter()  # 1000 + 100 secondes (?)
+        # self.detect_siege 1000 + 20s
+        aim_attacks = self.get_attacks_with_aim_shooter() + self.detect_siege()
+
+        available_aim_attacks = aim_attacks
+        for no in pre_aim_attacks:
+            if no in aim_attacks:
+                available_aim_attacks.remove(no)
+            
+        # for i in available_aim_attacks:
+        #    print("AIMSHOOTER detects ", self.turn, ": ", str(i))
+
+        self.game_attacks.append([])
+        self.game_attacks[self.turn] = available_aim_attacks
+        self.execute_all_attacks(available_aim_attacks)
+
+        
+        #for i in range(1000):
+        self.check_end() # moyen, +100sec/1000 exe par boucle
+        self.end_turn()
+
 
 def find_win():
     while True:
@@ -1289,14 +1352,15 @@ def find_win():
 def launch_games(number, must_be_completed = False):
     c = 0
     for i in range(number):
-        game = Game()
+        game = Game(auto=True)
         
         if must_be_completed:
             while not game.is_finished:
-                game = Game()
+                game = Game(auto=True)
         c+=game.time_exe
     c/=number
     print(f"FINAL TIME: {c:.3}s")
 
-Game(True)
-
+if __name__ == "__main__":
+    print("main.py")
+    Game(auto=True).show_game()
