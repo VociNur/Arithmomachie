@@ -7,6 +7,7 @@ from json import loads
 import random
 import time
 from timeit import timeit
+import math
 
 from functools import partial
 from  pynput import keyboard
@@ -67,56 +68,71 @@ class Minmax():
         return self.dif(rates, root_player_turn)*1000 + self.dif(progress, root_player_turn)
 
     #min max    
-    def min(self, game:Game, root_player_turn, profondeur):
+    def minmax_min(self, game:Game, root_player_turn, profondeur, alpha, beta):
 
         if profondeur == 0 :
-            return (self.evaluate(game, root_player_turn), [])
+            eval = self.evaluate(game, root_player_turn)
+            return (eval, [])
         moves = game.get_game_available_moves()
         if moves == []:
-            (self.evaluate(game, root_player_turn), [])
+            eval = self.evaluate(game, root_player_turn)
+            return (eval, [])
 
         worst_sub_point, worst_moves_to_go_sub_game = None, None
         for index, m in enumerate(moves):
             sub_game = deepcopy(game)
             sub_game.play_move(moves[index])
-            sub_point, moves_to_go_sub_game = self.max(sub_game, root_player_turn, profondeur-1)
+            sub_point, moves_to_go_sub_game = self.minmax_max(sub_game, root_player_turn, profondeur-1, alpha, beta)
+
+            if sub_point <= alpha: #elagage alpha
+                return (-math.inf, []) # pour ne pas qu'il soit considéré par le max
+            
             moves_to_go_sub_game.append(m)
             if index == 0 or worst_sub_point > sub_point:
                 worst_sub_point = sub_point
+                beta = min(beta, sub_point)
+                #on pourrait le modifier avant, ça revient au même
                 worst_moves_to_go_sub_game = moves_to_go_sub_game
         return worst_sub_point, worst_moves_to_go_sub_game    
 
 
-    def max(self, game:Game, root_player_turn, profondeur):
+    def minmax_max(self, game:Game, root_player_turn, profondeur, alpha, beta):
         if profondeur == 0 :
-            return (self.evaluate(game, root_player_turn), [])
+            eval = self.evaluate(game, root_player_turn)
+            return (eval, []) #un max ne modifie que beta
         moves = game.get_game_available_moves()
         if moves == []:
-            (self.evaluate(game, root_player_turn), [])
+            eval = self.evaluate(game, root_player_turn)
+            return (eval, [])
 
         best_sub_point, best_moves_to_go_sub_game = None, None
         for index in range(len(moves)):
             sub_game = deepcopy(game)
             sub_game.play_move(moves[index])
-            sub_point, moves_to_go_sub_game = self.min(sub_game, root_player_turn, profondeur-1)
+            sub_point, moves_to_go_sub_game = self.minmax_min(sub_game, root_player_turn, profondeur-1, alpha, beta)
+
+            if sub_point >= beta:
+                return (math.inf, [])
+
             moves_to_go_sub_game.append(moves[index])
             #print(sub_point, best_sub_point)
             if index == 0 or best_sub_point < sub_point:
                 best_sub_point = sub_point
-                
+                alpha = max(alpha, sub_point) #vient d'un min donc alpha est modifié
+                #on pourrait modifier le alpha avant
                 best_moves_to_go_sub_game = moves_to_go_sub_game
         return best_sub_point, best_moves_to_go_sub_game    
 
 
     
     def min_max(self, game:Game, profondeur):
-        return self.max(game, game.player_turn, profondeur)
+        return self.minmax_max(game, game.player_turn, profondeur, -math.inf, math.inf)
     
     
 
 if __name__ == "__main__":
-    min = Minmax()
-    game = min.game
+    minmax = Minmax()
+    game = minmax.game
     print("ah")
     print(game.piece_number())
     print(game.piece_rate())
