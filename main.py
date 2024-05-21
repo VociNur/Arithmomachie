@@ -115,6 +115,10 @@ class Game:
                 x=self.locations[i][1] + x
                 
         return (y/n, x/n)
+    def distance_center_to_isobary_center(self, player):
+        mid_y, mid_x = (7.5, 3.5)
+        y, x = self.isobarycenter(player)
+        return(y-mid_y, x-mid_x)
     
     def dispersion(self, player):
         id_pawns = BLACK_ID if player else WHITE_ID
@@ -141,6 +145,19 @@ class Game:
         
         return y
 
+    def get_delta_stats(self):
+
+        white_pieces_rate, black_pieces_rate = self.piece_rate()
+        (white_dispersion_y, white_dispersion_x), (black_dispersion_y, black_dispersion_x) = self.dispersion(0), self.dispersion(1)
+        (white_dist_to_center_y, white_dist_to_center_x), (black_dist_to_center_y, black_dist_to_center_x) = self.distance_center_to_isobary_center(0), self.distance_center_to_isobary_center(1)
+        white_progress, black_progress = self.progress(1), self.progress(0)
+        return (white_pieces_rate - black_pieces_rate, 
+                white_dispersion_y - black_dispersion_y,
+                white_dispersion_x - black_dispersion_x,
+                white_dist_to_center_y - black_dist_to_center_y,
+                white_dist_to_center_x - black_dist_to_center_x,
+                white_progress - black_progress)
+    
     def update_view(self):
         self.init_view(self.iview)
 
@@ -285,6 +302,8 @@ class Game:
     def show_game(self):
         if not self.save_game:
             return
+        
+        print(f'Temps d\'initialisation : {time.time() - self.start_time:.3}s')
         self.iview = self.turn
 
         self.display = tk.Tk()
