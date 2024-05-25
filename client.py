@@ -13,7 +13,7 @@ class Client:
 
     def fake_match(self, match: Match):
         print("Doing", match.to_string())
-        time.sleep(12)
+        time.sleep(1)
         result = 1
         match.result = result
         self.client_socket.send(match.to_packet())

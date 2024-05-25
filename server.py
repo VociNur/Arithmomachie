@@ -13,6 +13,7 @@ class MyServer:
         self.message_separator = "|"
         self.match_to_play : List[Match] = []
         self.result = []
+        self.nbr_parties = 0
 
         self.connected_computers : List[Computer]= []
         self.threads : List[threading.Thread] = []

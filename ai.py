@@ -29,6 +29,7 @@ class AI:
 
         self.init_gen_0()
         for i in range(5):
+            print(f"génération {i}")
             self.do_generation()
         print("FINITO")
 
@@ -40,12 +41,12 @@ class AI:
             for j in range(i):
                 match = Match(j, self.evaluations[j], i, self.evaluations[i])
                 self.server.match_to_play.append(match) #1<=j<i<=n-1
-        nbr_parties = len(self.server.match_to_play)
+        self.server.nbr_parties = len(self.server.match_to_play)
         print(f"Nombre de parties à jouer: {self.server.match_to_play }")
 
-        while self.server.match_to_play  != len(self.server.result):
-            print(f"{len(self.server.result)}/{nbr_parties} finished game")
-            print(f"{len(self.server.get_current_matches())}/{nbr_parties} current game")
+        while self.server.nbr_parties != len(self.server.result):
+            print(f"{len(self.server.result)}/{self.server.nbr_parties} finished game")
+            print(f"{len(self.server.get_current_matches())}/{self.server.nbr_parties} current game")
             if len(self.server.match_to_play) > 0:
                 for c in self.server.connected_computers:
                     
