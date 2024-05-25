@@ -1,17 +1,17 @@
 import socket
 import threading
-import time
+from time import time
 from typing import List
 
 from computer import Computer
+from match import Match
 
 class MyServer:
     
     def __init__(self, nbr_listener) -> None:
         self.message_separator = "|"
-        self.match_to_play = []
-        self.mutex = threading.Lock()
-        self.current_matches = []
+        self.match_to_play : List[Match] = []
+        self.current_matches : List[Match]= []
         self.result = []
 
         self.connected_computers : List[Computer]= []
@@ -61,6 +61,7 @@ class MyServer:
         print("Connection from: " + str(addr))
         
         mes = conn.recv(1024).decode()
+        
         smes = mes.split(",")
         if len(smes) != 3:
             return
@@ -106,6 +107,10 @@ class MyServer:
 
         
         print("Finishing")
+        return
+        while True:
+            pass
+        
         for c in self.connected_computers:
             c.conn.close()
         for t in self.threads:
@@ -115,3 +120,5 @@ class MyServer:
 
 if __name__ == '__main__':
     MyServer(2)
+    while True:
+        time.sleep(10)

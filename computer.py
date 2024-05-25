@@ -21,6 +21,7 @@ class Computer:
     def add_match(self, match:Match):
         self.actual_games.append(match)
         self.conn.send(match.to_string().encode())
+        print(f"Match {match.to_string()} sent to {self.addr}")
 
     def print_match(self):
         for game in self.actual_games:
