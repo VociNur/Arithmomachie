@@ -1,8 +1,9 @@
 import socket
 import threading
-from time import time
+from time import *
 from typing import List
 
+from enums.TypeMessage import TypeMessage
 from computer import Computer
 from match import Match
 
@@ -11,7 +12,6 @@ class MyServer:
     def __init__(self, nbr_listener) -> None:
         self.message_separator = "|"
         self.match_to_play : List[Match] = []
-        self.current_matches : List[Match]= []
         self.result = []
 
         self.connected_computers : List[Computer]= []
@@ -30,6 +30,14 @@ class MyServer:
         self.server_socket.listen(nbr_listener)
         self.server_program()
 
+    def get_current_matches(self):
+        result = []
+        for c in self.connected_computers:
+            for m in c.actual_games:
+                result.append(m)
+
+        return result
+    
     def command(self):
         while self.running:
             mes = input("->")
@@ -57,29 +65,50 @@ class MyServer:
                 self.server_socket.close()
                 print("Shutdown...")
 
+    def give_match_to(self, c:Computer):
+        if len(self.match_to_play)==0:
+            return
+        match = self.match_to_play[0]
+        self.match_to_play.remove(match)
+        c.add_match(match)
+
     def on_new_client(self, conn:socket, addr):
         print("Connection from: " + str(addr))
-        
-        mes = conn.recv(1024).decode()
-        
-        smes = mes.split(",")
-        if len(smes) != 3:
-            return
-        system, node_name, cores_number = smes
-        computer = Computer(conn, addr)
-        computer.set_stat(system, node_name, cores_number)
-        print("Connected:", str(computer))
-        self.connected_computers.append(computer)
-        while True:
-            # receive data stream. it won't accept data packet greater than 1024 bytes
-            data = conn.recv(1024).decode()
-            if not data:
-                # if data is not received break
-                break
-            print("from " + str(addr) + ":" + str(data))
-        print("close connection")
-        self.connected_computers.remove(computer)    
-        conn.close()  # close the connection
+        computer = None
+        try:
+            encoded_data = ""
+            get_info = False
+            while self.running:
+                add_encoded_data = conn.recv(1024).decode()
+                if not add_encoded_data:
+                    # if data is not received break
+                    break
+                encoded_data = encoded_data + add_encoded_data
+                decoded_data, encoded_data = TypeMessage.decode_package(encoded_data)
+                for (type_data, data) in decoded_data:
+                    if type_data == TypeMessage.CONNECTION:
+                        print("recv data", data)
+                        system, node_name, cores_number = data.split(",")
+                        computer = Computer(conn, addr)
+                        computer.set_stat(system, node_name, cores_number)
+                        self.connected_computers.append(computer)
+                        get_info = True
+                        print("Connected:", str(computer))
+                        continue
+                    if not get_info:
+                        print("Not connected when getting information !")
+                        raise Exception()
+                    if type_data == TypeMessage.MATCH:
+                        print("Get match")
+                        match = Match.from_string(data)
+                        computer.actual_games.remove(match)
+                        self.result.append(match)
+                        
+                        
+        finally:
+            print("close connection")
+            self.connected_computers.remove(computer)    
+            conn.close()  # close the connection
 
 
     def wait_client(self):
@@ -121,4 +150,4 @@ class MyServer:
 if __name__ == '__main__':
     MyServer(2)
     while True:
-        time.sleep(10)
+        sleep(10)

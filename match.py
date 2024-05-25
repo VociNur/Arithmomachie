@@ -33,14 +33,14 @@ class Match:
         eps = 10e-6
         if type(value) is Match:
 
-            print(self.date_creation)
-            print(value.date_creation)
+            #print(self.date_creation)
+            #print(value.date_creation)
             return self.p1 == value.p1 and self.p2 == value.p2 and (abs(float(self.date_creation) - float(value.date_creation)) < eps)
         return False
 
     def to_packet(self):
-        self_str = self.to_string().encode()
-        return TypeMessage.complete(TypeMessage.MATCH, self_str)
+        self_str = self.to_string()
+        return TypeMessage.encode_package(TypeMessage.MATCH, self_str)
 
 def test_class_methom_string(self, s:str): # old function, not updated
         decoding_character = "'"

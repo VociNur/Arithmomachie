@@ -2,7 +2,7 @@ import socket
 from threading import Thread
 import time
 
-from TypeMessage import TypeMessage
+from enums.TypeMessage import TypeMessage
 from match import Match
 
 class Client:
@@ -13,10 +13,10 @@ class Client:
 
     def fake_match(self, match: Match):
         print("Doing", match.to_string())
-        time.sleep(10)
+        time.sleep(12)
         result = 1
         match.result = result
-        self.client_socket.send()
+        self.client_socket.send(match.to_packet())
         
 
 
@@ -33,6 +33,7 @@ class Client:
         
         
         connected = False
+        self.running = True
         while not connected:
             print("Connecting...")
             try:
@@ -66,20 +67,36 @@ class Client:
 
         self.client_socket.send(TypeMessage.encode_package(TypeMessage.CONNECTION, system + "," + node_name + "," + cores_number))
 
-        message = ""
         threads = []
-        while message.lower().strip() != 'bye':
-            message = self.client_socket.recv(1024).decode()
-            if message == "bye":
-                break
 
-            match = Match.from_string(message)
-            t = Thread(target = self.fake_match, args=(match,))
-            t.start()
-            threads.append(t)
+        try:
+            encoded_data = ""
+            while self.running:
+                print("waiting")
+                add_encoded_data = self.client_socket.recv(1024).decode()
+                if not add_encoded_data:
+                    # if data is not received break
+                    break
+                encoded_data = encoded_data + add_encoded_data
+                print(encoded_data)
+                decoded_data, encoded_data = TypeMessage.decode_package(encoded_data)
+                print(decoded_data, encoded_data)
+                
+                for (type_data, data) in decoded_data:
+                    if type_data == TypeMessage.END_CONNECTION:
+                        self.running = False
+                    if type_data == TypeMessage.MATCH:
+                        print("Get match")
+                        match = Match.from_string(data)
+                        t = Thread(target = self.fake_match, args=(match,))
+                        t.start()
+                        threads.append(t)
         
+                        
+        finally:
+            print("close connection")
+            self.client_socket.close()  # close the connection
 
-        self.client_socket.close()  # close the connection
         
 
 

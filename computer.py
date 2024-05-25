@@ -20,7 +20,7 @@ class Computer:
 
     def add_match(self, match:Match):
         self.actual_games.append(match)
-        self.conn.send(match.to_string().encode())
+        self.conn.send(match.to_packet())
         print(f"Match {match.to_string()} sent to {self.addr}")
 
     def print_match(self):

@@ -1,12 +1,17 @@
 from enum import Enum
 
+from more_itertools import strip
+
 
 class TypeMessage(Enum):
-    PREFIX_LENGTH = 10
+
     CONNECTION = "CONNECT   ", 100
     MATCH = "MATCH     ", 50
     END_CONNECTION = "END       "
     
+    def get_prefix_length():
+        return 10
+
     def prefix(enum):
         return enum.value[0]
     
@@ -17,17 +22,23 @@ class TypeMessage(Enum):
 
         if len(s) > TypeMessage.length(enum):
             raise Exception("La taille n'est pas assez grande !!!", s, enum)
-        return enum + s + " " * (TypeMessage.length(enum) - len(s))
+        return (TypeMessage.prefix(enum) + s + " " * (TypeMessage.length(enum) - len(s))).encode()
 
-    def decode_package(self, s:str):
+    def decode_package(s:str):
         if len(s) < 10:
             return [], s
         result = []
-        for type in TypeMessage:
-            if s[:TypeMessage.PREFIX_LENGTH] == TypeMessage.prefix(type):
-                result.append(s[TypeMessage.PREFIX_LENGTH:TypeMessage.PREFIX_LENGTH + TypeMessage.length(type)])
-                s = s[TypeMessage.PREFIX_LENGTH + TypeMessage.length(type):]
-                break
+        decode = True
+        while decode:
+            decode = False
+            for type in TypeMessage:
+                if s[:TypeMessage.get_prefix_length()] == TypeMessage.prefix(type):
+                    result.append((type, s[TypeMessage.get_prefix_length():TypeMessage.get_prefix_length() + TypeMessage.length(type)].strip()))
+                    s = s[TypeMessage.get_prefix_length() + TypeMessage.length(type):]
+                    decode = True
+                    break
+                    
+            
         return result, s
                         
 
