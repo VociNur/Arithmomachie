@@ -13,6 +13,8 @@ class Match:
         self.ev2 = ev2
         self.result = result # 0 pour le joueur p1, 1 pour le joueur p2, -1 si pas défini
 
+
+
     def to_string(self):
         encoding_character = "'"
         return f"{self.p1}{encoding_character}{self.ev1.to_string()}{encoding_character}{self.p2}{encoding_character}{self.ev2.to_string()}{encoding_character}{self.result}{encoding_character}{self.date_creation}"
@@ -27,7 +29,7 @@ class Match:
         ss = s.split(decoding_character)
         if len(ss) != 6:
             raise Exception
-        return Match(int(ss[0]), Evaluation.from_string(ss[1]), int(ss[2]), Evaluation.from_string(ss[3]), result=ss[4], date_creation=ss[5])
+        return Match(int(ss[0]), Evaluation.from_string(ss[1]), int(ss[2]), Evaluation.from_string(ss[3]), result=int(ss[4]), date_creation=float(ss[5]))
     
     def __eq__(self, value: object) -> bool:
         eps = 10e-6

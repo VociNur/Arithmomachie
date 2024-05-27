@@ -12,7 +12,7 @@ class MyServer:
     def __init__(self, nbr_listener) -> None:
         self.message_separator = "|"
         self.match_to_play : List[Match] = []
-        self.result = []
+        self.result : List[Match] = []
         self.nbr_parties = 0
 
         self.connected_computers : List[Computer]= []
@@ -56,15 +56,25 @@ class MyServer:
                     c.print_match()
                 print("--------------------------")
             if mes == "shutdown" or mes == "s":
-                self.running = False
-                self.server_socket.sendall("bye".encode())
+                self.stop_server()
 
-                client_socket = socket.socket()  # instantiate
-                client_socket.connect((self.host, self.port))  # connect to the server
-                client_socket.close() #juste pour actualiser
-                time.sleep(1)
-                self.server_socket.close()
-                print("Shutdown...")
+    def stop_server(self):
+        if self.running == False:
+            return
+        self.running = False
+        #self.server_socket.sendall(TypeMessage.encode_package(TypeMessage.END_CONNECTION, "")) ne fonctionne pas pour des raisons inconnues
+        for c in self.connected_computers:
+            c.conn.send(TypeMessage.encode_package(TypeMessage.END_CONNECTION, ""))
+
+
+        #réveille le serv, thread qui attend des entrées
+        client_socket = socket.socket()  # instantiate
+        client_socket.connect((self.host, self.port))  # connect to the server
+        client_socket.close() #juste pour actualiser
+        sleep(1)
+        self.server_socket.close()
+        print("Shutdown...")
+
 
     def give_match_to(self, c:Computer):
         if len(self.match_to_play)==0:
@@ -88,7 +98,7 @@ class MyServer:
                 decoded_data, encoded_data = TypeMessage.decode_package(encoded_data)
                 for (type_data, data) in decoded_data:
                     if type_data == TypeMessage.CONNECTION:
-                        print("recv data", data)
+                        #print("recv data", data)
                         system, node_name, cores_number = data.split(",")
                         computer = Computer(conn, addr)
                         computer.set_stat(system, node_name, cores_number)
@@ -101,6 +111,7 @@ class MyServer:
                         raise Exception()
                     if type_data == TypeMessage.MATCH:
                         print("Get match")
+
                         match = Match.from_string(data)
                         computer.actual_games.remove(match)
                         self.result.append(match)
@@ -108,7 +119,11 @@ class MyServer:
                         
         finally:
             print("close connection")
-            self.connected_computers.remove(computer)    
+
+            if computer in self.connected_computers:
+                computer.is_connected = False  
+            else:
+                print("Last computer disconnected")
             conn.close()  # close the connection
 
 
@@ -126,6 +141,7 @@ class MyServer:
 
 
         #Permet d'effectuer des commandes
+        #Ce thread ne s'arrête pas seul, il faut obligatoirement mettre "s" dans la console
         t = threading.Thread(target = self.command)
         t.start()
         self.threads.append(t)

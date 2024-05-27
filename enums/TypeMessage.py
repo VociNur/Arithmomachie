@@ -6,8 +6,12 @@ from more_itertools import strip
 class TypeMessage(Enum):
 
     CONNECTION = "CONNECT   ", 100
-    MATCH = "MATCH     ", 50
-    END_CONNECTION = "END       "
+    MATCH = "MATCH     ", 120
+    #Grosso modo
+    #evaluation: 6 flottants de 3 décimals donc 5 chiffes + séparation : total 36
+    # match = 2 evaluations + result + imes
+    END_CONNECTION = "END       ", 0
+
     
     def get_prefix_length():
         return 10
@@ -33,6 +37,8 @@ class TypeMessage(Enum):
             decode = False
             for type in TypeMessage:
                 if s[:TypeMessage.get_prefix_length()] == TypeMessage.prefix(type):
+                    if len(s) < TypeMessage.get_prefix_length() + TypeMessage.length(type):
+                        continue #attendre la fin du packet
                     result.append((type, s[TypeMessage.get_prefix_length():TypeMessage.get_prefix_length() + TypeMessage.length(type)].strip()))
                     s = s[TypeMessage.get_prefix_length() + TypeMessage.length(type):]
                     decode = True

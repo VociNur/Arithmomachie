@@ -12,6 +12,7 @@ class Computer:
         self.node = ""
         self.cores = ""
         self.actual_games : List[Match] = []
+        self.is_connected = True
 
     def set_stat(self, system, node, cores):
         self.system = system

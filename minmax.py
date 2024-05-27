@@ -4,8 +4,6 @@ import tkinter as tk
 
 import numpy as np
 from json import loads
-import random
-import time
 from timeit import timeit
 import math
 
@@ -166,13 +164,15 @@ class Minmax():
     
     
 
+
 if __name__ == "__main__":
     minmax = Minmax()
     game = Game()
-    for i in range(10):
+    for i in range(200):
 
-        _,_, bm = minmax.min_max(game, 1)
+        _,_, bm = minmax.min_max(game, 1, eval_function=None)
         game.play_move(bm)
+    
     print("ah")
     print(game.piece_number())
     print(game.piece_rate())
@@ -183,7 +183,6 @@ if __name__ == "__main__":
     print(game.progress(0))
     print(game.progress(1))
     game.show_game()
-
 
 
 

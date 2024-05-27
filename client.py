@@ -3,7 +3,9 @@ from threading import Thread
 import time
 
 from enums.TypeMessage import TypeMessage
+from main import Game
 from match import Match
+from minmax import Minmax
 
 class Client:
 
@@ -13,32 +15,53 @@ class Client:
 
     def fake_match(self, match: Match):
         print("Doing", match.to_string())
-        time.sleep(1)
+        time.sleep(3)
         result = 1
         match.result = result
+
+        print(match.to_string())
+        if not self.is_connected:
+            print("Not still connected")
+            return
         self.client_socket.send(match.to_packet())
         
+    def do_match(self, match : Match):
+        turns = 2000
+        depth = 1
 
+        game = Game()
+        for i in range(turns):
+            if not self.is_connected:
+                break
+            coups = game.get_game_available_moves()
+            if len(coups) == 0 or game.winner != -1:
+                break
+            eval_fct = match.ev1.evaluate if i % 2 == 0 else match.ev2.evaluate
+            points, moves, move = Minmax().min_max(game, depth, eval_fct)
+            game.play_move(move)
+        self.result = game.winner
 
     def play_match_and_send_result(self, match: Match):
         
-        #match.ev1.battle(match.ev2)
+        self.do_match(match)
+        self.client_socket.send(match.to_packet())
         pass
 
     def client_program(self):
-        host = socket.gethostname()  # as both code is running on same pc
+        #host = "109.215.159.203"  # as both code is running on same pc
+        host = socket.gethostname()
+        print(host)
         port = 5000  # socket server port number
 
         self.client_socket = socket.socket()  # instantiate
         
         
-        connected = False
-        self.running = True
-        while not connected:
+        self.is_connected = False
+        while not self.is_connected:
             print("Connecting...")
             try:
                 self.client_socket.connect((host, port))  # connect to the server
-                connected = True
+                self.is_connected = True
             except:
                 print("Cannot connect now")
                 time.sleep(10)
@@ -71,7 +94,7 @@ class Client:
 
         try:
             encoded_data = ""
-            while self.running:
+            while self.is_connected:
                 print("waiting")
                 add_encoded_data = self.client_socket.recv(1024).decode()
                 if not add_encoded_data:
@@ -84,21 +107,26 @@ class Client:
                 
                 for (type_data, data) in decoded_data:
                     if type_data == TypeMessage.END_CONNECTION:
-                        self.running = False
+                        self.is_connected = False
+
+                        print("close connection by server")
                     if type_data == TypeMessage.MATCH:
                         print("Get match")
                         match = Match.from_string(data)
-                        t = Thread(target = self.fake_match, args=(match,))
+                        t = Thread(target = self.play_match_and_send_result, args=(match,))
                         t.start()
                         threads.append(t)
+                    
         
                         
         finally:
-            print("close connection")
+            print("Finally")
             self.client_socket.close()  # close the connection
 
         
 
 
 if __name__ == '__main__':
-    Client()
+    while True:
+        Client()
+        time.sleep(10)

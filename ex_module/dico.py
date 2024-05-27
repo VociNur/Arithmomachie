@@ -8,3 +8,5 @@ if "1" in a:
 
 if "2" in a:
     print("non ok")
+
+print(a.values())
