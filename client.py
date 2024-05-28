@@ -63,7 +63,7 @@ class Client:
                 self.client_socket.connect((host, port))  # connect to the server
                 self.is_connected = True
             except:
-                print("Cannot connect now")
+                print("Cannot connect now : Any server")
                 time.sleep(10)
         print("Connected !")
         
