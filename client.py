@@ -48,8 +48,8 @@ class Client:
         pass
 
     def client_program(self):
-        #host = "109.215.159.203"  # as both code is running on same pc
-        host = socket.gethostname()
+        host = "109.215.159.203"  # as both code is running on same pc
+        #host = socket.gethostname()
         print(host)
         port = 5000  # socket server port number
 
@@ -128,5 +128,9 @@ class Client:
 
 if __name__ == '__main__':
     while True:
-        Client()
-        time.sleep(10)
+        print("relaunch")
+        try:
+            Client()
+            time.sleep(10)
+        finally:
+            print("relaunching")
