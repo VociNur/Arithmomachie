@@ -1,0 +1,2 @@
+chmod +x ./START_LINUX.bin
+./START_LINUX.bin

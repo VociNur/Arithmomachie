@@ -48,10 +48,18 @@ class Client:
         pass
 
     def client_program(self):
+        #home
         host = "109.215.159.203"  # as both code is running on same pc
+
+        #local
         #host = socket.gethostname()
+
+        #l
+        #host = "10.0.2.15"
         print(host)
-        port = 5000  # socket server port number
+
+        
+        port = 49300  # socket server port number
 
         self.client_socket = socket.socket()  # instantiate
         

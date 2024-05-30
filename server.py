@@ -21,7 +21,7 @@ class MyServer:
 
         # get the hostname
         self.host = socket.gethostname()
-        self.port = 5000 # initiate port no above 1024
+        self.port = 49300 # initiate port no above 1024
 
         self.server_socket = socket.socket()  # get instance
         # look closely. The bind() function takes tuple as argument
