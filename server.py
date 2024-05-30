@@ -54,7 +54,11 @@ class MyServer:
                 print("----- Playing matches -----")
                 for c in self.connected_computers:
                     c.print_match()
+                print("--------- Result ---------")
+                for m in self.result:
+                    print(m)
                 print("--------------------------")
+
             if mes == "shutdown" or mes == "s":
                 self.stop_server()
 

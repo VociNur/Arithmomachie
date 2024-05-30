@@ -105,7 +105,7 @@ class AI:
                     #for i in range(int(max(2, int(c.cores)/6) - len(c.actual_games))):
                     for i in range(1-len(c.actual_games)): # pas d'autres choix pour l'instant, seul le proc est en PLS
                         self.server.give_match_to(c)
-            time.sleep(2)
+            time.sleep(10)
 
         print("Generation effectue")
 

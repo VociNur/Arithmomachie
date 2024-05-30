@@ -58,7 +58,7 @@ class Client:
         #host = "10.0.2.15"
         print(host)
 
-        
+
         port = 49300  # socket server port number
 
         self.client_socket = socket.socket()  # instantiate
