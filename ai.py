@@ -27,13 +27,14 @@ class AI:
     def __init__(self) -> None:
         self.evaluations : Dict[int, Evaluation] = {}
         self.population_count = 0
-        self.server = MyServer(3)
+        self.server = MyServer(5)
         try:
             self.do_AI()
         except Exception as e:
             print(e.format_exc())
         finally:
-            self.server.stop_server()
+            #self.server.stop_server()
+            pass
     
     def do_AI(self):
         self.init_gen_0()
