@@ -70,9 +70,19 @@ def test_class_method():
     print(l)
     print(m.to_packet())
 
+def test_2():
+    eval = Evaluation(1, 2, 3, 4, 5, 6)
+    eval2 = Evaluation(1, 1, 3, 3, 5, 5)
+    m = Match(0, eval, 3, eval2)
+    m.result = 0
+    to_str = m.to_string()
+    m2 = Match.from_string(to_str)
+    
+    print(m2)
+
 if __name__ == "__main__":
     #ai1 = Evaluation(1, 0, 0, 0, 0, 0)
     #ai2 = Evaluation(-1, 0, 0, 0, 0, 0)
     #win, game = ai1.battle(ai2)
     #game.show_game()
-    test_class_method()
+    test_2()

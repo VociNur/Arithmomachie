@@ -30,6 +30,7 @@ class Client:
         depth = 1
 
         game = Game()
+        time.sleep(1)
         for i in range(turns):
             if not self.is_connected:
                 break
@@ -39,7 +40,8 @@ class Client:
             eval_fct = match.ev1.evaluate if i % 2 == 0 else match.ev2.evaluate
             points, moves, move = Minmax().min_max(game, depth, eval_fct)
             game.play_move(move)
-        self.result = game.winner
+        match.result = 0
+        return 
 
     def play_match_and_send_result(self, match: Match):
         

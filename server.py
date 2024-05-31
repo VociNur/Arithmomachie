@@ -60,24 +60,25 @@ class MyServer:
                 print("--------------------------")
 
             if mes == "shutdown" or mes == "s":
-                self.stop_server()
+                #self.stop_server()
+                pass
 
-    def stop_server(self):
-        if self.running == False:
-            return
-        self.running = False
-        #self.server_socket.sendall(TypeMessage.encode_package(TypeMessage.END_CONNECTION, "")) ne fonctionne pas pour des raisons inconnues
-        for c in self.connected_computers:
-            c.conn.send(TypeMessage.encode_package(TypeMessage.END_CONNECTION, ""))
+    #def stop_server(self):
+    #    if self.running == False:
+    #        return
+    #    self.running = False
+    #    #self.server_socket.sendall(TypeMessage.encode_package(TypeMessage.END_CONNECTION, "")) ne fonctionne pas pour des raisons inconnues
+    #    for c in self.connected_computers:
+    #        c.conn.send(TypeMessage.encode_package(TypeMessage.END_CONNECTION, ""))
 
 
         #réveille le serv, thread qui attend des entrées
-        client_socket = socket.socket()  # instantiate
-        client_socket.connect((self.host, self.port))  # connect to the server
-        client_socket.close() #juste pour actualiser
-        sleep(1)
-        self.server_socket.close()
-        print("Shutdown...")
+    #    client_socket = socket.socket()  # instantiate
+    #    client_socket.connect((self.host, self.port))  # connect to the server
+    #    client_socket.close() #juste pour actualiser
+    #    sleep(1)
+    #    self.server_socket.close()
+    #    print("Shutdown...")
 
 
     def give_match_to(self, c:Computer):
