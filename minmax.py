@@ -16,6 +16,8 @@ from copy import deepcopy, copy
 from main import Game
 import random
 
+from numba import njit
+
 class Minmax():
 
 
@@ -155,7 +157,7 @@ class Minmax():
         return best_sub_point, best_moves_to_go_sub_game    
 
 
-    
+ 
     def min_max(self, game:Game, profondeur, eval_function = None):
         if eval_function == None:
             eval_function = self.basic_evaluate
@@ -163,12 +165,10 @@ class Minmax():
         return (points, moves, moves[-1])
     
     
-
-
-if __name__ == "__main__":
+def launch_min_max():
     minmax = Minmax()
     game = Game()
-    for i in range(200):
+    for i in range(1000):
 
         _,_, bm = minmax.min_max(game, 1, eval_function=None)
         game.play_move(bm)
@@ -183,6 +183,9 @@ if __name__ == "__main__":
     print(game.progress(0))
     print(game.progress(1))
     game.show_game()
+
+if __name__ == "__main__":
+    launch_min_max()
 
 
 

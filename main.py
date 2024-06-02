@@ -1,7 +1,9 @@
 
 from math import log
 import tkinter as tk
+from typing import OrderedDict
 
+import numba as nb
 import numpy as np
 from json import loads
 import time
@@ -13,6 +15,10 @@ from pynput.keyboard import Key, KeyCode
 
 from enums.type_attack import TypeAttack
 import random
+
+from numba import njit, objmode, types
+from numba.experimental import jitclass
+from numba import int32, float32, boolean
 
 width, height = (8, 16)
 
@@ -30,9 +36,11 @@ FIRST_FAKE_ID_BLACK = FAKE_ID_BLACK[0]
 
 SHOW_PRINT = False
 
+
 def clear_file(f: str):
     with open(f + ".txt", "w"):
         pass
+
 
 
 def print_file(f: str, args):
@@ -42,7 +50,11 @@ def print_file(f: str, args):
     with open(f + ".txt", "a") as file:
         file.write(arg + "\n")
 
+@njit
+def is_int(a):
+    return int(a) == a
 
+@njit
 def is_power_or_root(a, b):
     if a <= 0 or b <= 0:
         if SHOW_PRINT:
@@ -52,9 +64,10 @@ def is_power_or_root(a, b):
         return True
     elif a == 1 or b == 1:
         return False
-    return (log(b) / log(a)).is_integer() or (log(a) / log(b)).is_integer()
+    return is_int(log(b) / log(a)) or is_int(log(a) / log(b))
 
 
+@njit
 def a_is_equation(a, b, c):
     return a + b == c \
         or abs(a - b) == c \
@@ -63,6 +76,7 @@ def a_is_equation(a, b, c):
         or b / a == c
 
 
+@njit
 def get_progression(a, b, c):
     t = [a, b, c]
     t.sort()
@@ -82,8 +96,88 @@ def get_progression(a, b, c):
     return 0
 
 
+t_locations = nb.typed.Dict.empty(
+    key_type=int32,
+    value_type=int32[:]
+)
+
+t_aim_value = np.array([[2], [2]])
+
+t_aim = nb.typed.Dict.empty(
+    key_type=int32,
+    value_type=nb.typeof(t_aim_value)
+)
+
+t_shooter_value = np.array([[2], [2]])
+
+t_shooter = nb.typed.Dict.empty(
+    key_type=int32,
+    value_type=nb.typeof(t_aim_value)
+)
+
+t_moves_by_id = nb.typed.Dict.empty(
+    key_type=int32,
+    value_type=int32[:]
+)
+
+double_int = nb.typeof(np.full((1, 1), 1))
+
+spec2 = [
+    ("start_time", float32),
+    ("board", double_int),
+    ("turn", int32),
+    ("player_turn", int32),
+    ("width", int32),
+    ("height", int32),
+    ("stop", boolean),
+    ("last_move", double_int),
+    ("view", int32),
+    ("save_game", boolean),
+    ("move_history", double_int),
+    ("locations", nb.typeof(t_locations)),
+    ("aim", nb.typeof(t_aim)),
+    ("shooter", nb.typeof(t_shooter)),
+    ("value_by_id", int32[:]),
+    ("form_by_id", int32[:]),
+    ("team_by_id", int32[:]),
+    ("moves_by_id", nb.typeof(t_moves_by_id)),
+    ("pieces_in_opponent_site", int32[:,:]),
+    ("initial_number_of_real_pieces", int32),
+    ("initial_number_of_pieces", int32),
+]
+
+spec = [
+    ('board', int32[:, :]),
+    ('turn', int32),
+    ('player_turn', int32),
+    ('width', int32),
+    ('height', int32),
+    ('stop', boolean),
+    ('last_move', int32[:, :]),
+    ('view', boolean),
+    ('save_game', boolean),
+    ('move_history', types.ListType(int32[:, :])),
+    ('game_attacks', types.ListType(types.ListType(int32[:]))),
+    ('locations', types.DictType(int32, int32[:])), 
+    ('aim', types.DictType(int32, types.ListType(int32[:] ))),
+    ('shooter', types.DictType(int32, types.ListType(int32[:] ))),
+    ('value_by_id', int32[:]),
+    ('form_by_id', int32[:]),
+    ('team_by_id', int32[:]),
+    ('moves_by_id', types.DictType(int32, types.DictType(int32, int32[:]))),
+    ('pieces_in_opponent_site', int32[:, :]),
+    ('iview', int32),
+    ('winner', int32)
+]
+
+
+
+
+@jitclass(spec)
 class Game:
     #fonctions d'évaluation, les pyramides sont comptées un peu double
+    
+    
     def piece_number(self):
         nbr_white = sum(map(lambda i:self.is_alive(i), WHITE_ID))
         nbr_pyr_white = sum(map(lambda i:self.is_alive(i), FAKE_ID_WHITE))
@@ -92,11 +186,15 @@ class Game:
         nbr_pyr_black = sum(map(lambda i:self.is_alive(i), FAKE_ID_BLACK))
         #return (nbr_white, nbr_pyr_white, nbr_black, nbr_pyr_black)
         return (nbr_white + nbr_pyr_white, nbr_black + nbr_pyr_black)
+    
 
+    
     def piece_rate(self):
         a,b = self.piece_number()
         return (a/30, b/29)
 
+
+    
     def piece_sum(self):
         sum_white = sum(map(lambda i:self.value_by_id(i), WHITE_ID))
         sum_pyr_white = sum(map(lambda i:self.value_by_id(i), FAKE_ID_WHITE))
@@ -105,6 +203,8 @@ class Game:
         sum_pyr_black = sum(map(lambda i:self.value_by_id(i), FAKE_ID_BLACK))
         return (sum_white + sum_pyr_white, sum_black + sum_pyr_black)
 
+
+    
     def isobarycenter(self, player):
         id_pawns = BLACK_ID if player else WHITE_ID
         x, y, n = 0, 0, 0
@@ -303,7 +403,7 @@ class Game:
         if not self.save_game:
             return
         
-        print(f'Temps d\'initialisation : {time.time() - self.start_time:.3}s')
+        print("Temps d\'initialisation :", time.time() - self.start_time)
         self.iview = self.turn
 
         self.display = tk.Tk()
@@ -343,11 +443,15 @@ class Game:
         listener.join()  # wait till thread really ends its job
 
     def init_board(self):
+        print("test")
         pre = "./boards/"
-        f = open(pre + "id_board.json", "r")
-        self.board = np.array(loads(f.read()))
-        f.close()
-
+        with objmode():
+            f = open(pre + "id_board.json", "r")
+            data = loads(f.read())
+            f.close()
+ 
+            #self.board = np.array(data)
+        
     # Vérifie si la position est bien dans le jeu
     def in_board(self, j, i):
         return 0 <= j < self.height and 0 <= i < self.width
@@ -360,7 +464,7 @@ class Game:
 
     # Vérifie si une case est libre, sans pion
     def is_empty(self, j, i):
-        return np.equal(self.board[j][i], -1).all()
+        return self.board[j][i] == -1
 
 
     # On récupère les mouvements réguliers, on doit vérifier que tout le trajet est libre
@@ -736,7 +840,7 @@ class Game:
             for dt in range(1, 1 + min(7 - x, 15 - y)):
                 if not self.is_empty(y + dt, x + dt) and (y + dt, x + dt) not in not_considered:
                     yield (first, self.board[y + dt][x + dt])
-                    break
+
 
     def check_end(self):
         for team in [0, 1]:
@@ -1242,7 +1346,8 @@ class Game:
 
 
     def __init__(self, view=False, auto = False):
-        self.start_time = time.time()
+        with objmode():
+            self.start_time = time.time()
         self.board = []  #id
         self.init_board()
 
@@ -1257,7 +1362,8 @@ class Game:
         self.save_game = True
         self.move_history = []
         # game_attacks est toujours sauvegardé
-        self.game_attacks = []  # l’élément i représente l’ensemble des attaques après le coup i, une attaque est sous
+        with objmode():
+            self.game_attacks = []  # l’élément i représente l’ensemble des attaques après le coup i, une attaque est sous
 
         self.locations = {}  # Permet de connaître la position d’une pièce, -1 si elle n’existe plus
         self.aim = {}  # Optimisation, attack, pièce qu’elle attaque
@@ -1290,14 +1396,14 @@ class Game:
         # self.test_new_board()
 
         if SHOW_PRINT:
-            print(f'Temps d\'initialisation : {time.time() - self.start_time:.3}s')
+            print("Temps d\'initialisation :", time.time() - self.start_time)
         nbr_coups = 0
 
         #self.fast_moves = {}
         #self.init_fast_moves()
         if not auto:
             return
-        self.max_turn = 1000
+        self.max_turn = 2000
         for _ in range(0, self.max_turn):  # ne sert à rien de dépasser 2000
             if self.stop:
                 break      
@@ -1316,7 +1422,7 @@ class Game:
             print("Fin en", self.turn, "tours")
         self.time_exe = time.time() - self.start_time
         
-        print(f'Temps d\'exécution : {self.time_exe:.3}s')
+        print("Temps d\'exécution :", self.time_exe)
         if SHOW_PRINT:
             print("Coups joués ", self.turn)
             print("nbr_coups", nbr_coups / self.turn)
@@ -1348,8 +1454,9 @@ class Game:
         # for i in available_aim_attacks:
         #    print("AIMSHOOTER detects ", self.turn, ": ", str(i))
 
-        self.game_attacks.append([])
-        self.game_attacks[self.turn] = available_aim_attacks
+        with objmode():
+            self.game_attacks.append([])
+            self.game_attacks[self.turn] = available_aim_attacks
         self.execute_all_attacks(available_aim_attacks)
 
         
@@ -1382,4 +1489,5 @@ def launch_games(number, must_be_completed = False):
 
 if __name__ == "__main__":
     print("main.py")
+    Game(auto=True).show_game()
     Game(auto=True).show_game()
