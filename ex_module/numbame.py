@@ -25,6 +25,16 @@ class Test():
         print("lol")
         self.test = 2
 
+
+    def test_file(self):
+        with objmode():
+            f = open("./ex_module/id_board.json", "r")
+            data = loads(f.read())
+            f.close()
+            print(data)
+ 
+            self.board = np.array(data)
+
     def __init__(self) -> None:
         self.test = 2
         with objmode():
@@ -37,17 +47,12 @@ class Test():
         self.str = np.array([2])
         self.rl = np.full((3, 3), 1)
         print(self.rl)
+        self.board = np.full((1, 1), 1)
         np.equal(self.np, -1).all()
 
            
         print("test")
-        with objmode():
-            f = open("./ex_module/id_board.json", "r")
-            data = loads(f.read())
-            f.close()
-            print(data)
- 
-            self.board = np.array(data)
+        self.test_file()
         
 
         

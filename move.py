@@ -1,15 +1,13 @@
 import pyautogui
 import time
+import os
 
-pyautogui.FAILSAFE = False
+n = input("nbr min")
 
-screenWidth, screenHeight = pyautogui.size()
-currentMouseX, currentMouseY = pyautogui.position()
-
-screenWidth, screenHeight = pyautogui.size()
-currentMouseX, currentMouseY = pyautogui.position()
-while True:
+for i in range(n):
     pyautogui.moveRel( 150, 0)
     time.sleep(5)
     pyautogui.moveRel(-150, 0)
     time.sleep(5)
+
+os.system("shutdown /s")
