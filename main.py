@@ -1,23 +1,38 @@
+
 from math import log
-import numba as nb
+import tkinter as tk
+
 import numpy as np
 from json import loads
 import time
+from timeit import timeit
+
+from functools import partial
+from  pynput import keyboard
+from pynput.keyboard import Key, KeyCode
+
 from enums.type_attack import TypeAttack
 import random
-from numba.experimental import jitclass
-from numba import int32, float32, boolean, njit, objmode, types, gdb
 
 width, height = (8, 16)
 
 length_of_data_pawn = 1
-SHOW_PRINT = False
+ID_WHITE_PYRAMID = 37
+ID_BLACK_PYRAMID = 11
 
+BLACK_ID = list(range(0, 24))
+WHITE_ID = list(range(24, 48))
+
+FAKE_ID_WHITE = list(range(48, 53 + 1))
+FIRST_FAKE_ID_WHITE = FAKE_ID_WHITE[0]
+FAKE_ID_BLACK = list(range(54, 58 + 1))
+FIRST_FAKE_ID_BLACK = FAKE_ID_BLACK[0]
+
+SHOW_PRINT = False
 
 def clear_file(f: str):
     with open(f + ".txt", "w"):
         pass
-
 
 
 def print_file(f: str, args):
@@ -27,11 +42,7 @@ def print_file(f: str, args):
     with open(f + ".txt", "a") as file:
         file.write(arg + "\n")
 
-@njit
-def is_int(a):
-    return int(a) == a
 
-@njit
 def is_power_or_root(a, b):
     if a <= 0 or b <= 0:
         if SHOW_PRINT:
@@ -41,10 +52,9 @@ def is_power_or_root(a, b):
         return True
     elif a == 1 or b == 1:
         return False
-    return is_int(log(b) / log(a)) or is_int(log(a) / log(b))
+    return (log(b) / log(a)).is_integer() or (log(a) / log(b)).is_integer()
 
 
-@njit
 def a_is_equation(a, b, c):
     return a + b == c \
         or abs(a - b) == c \
@@ -53,7 +63,6 @@ def a_is_equation(a, b, c):
         or b / a == c
 
 
-@njit
 def get_progression(a, b, c):
     t = [a, b, c]
     t.sort()
@@ -73,112 +82,31 @@ def get_progression(a, b, c):
     return 0
 
 
-
-def convert_to_numba_dict(original_dict):
-    numba_dict = nb.typed.Dict.empty(key_type=types.int64, value_type=types.ListType(types.int64[:]))
-    return numba_dict
-    
-t_locations = nb.typed.Dict.empty(
-    key_type=int32,
-    value_type=int32[:]
-)
-
-t_aim_value = np.array([[2], [2]])
-
-t_aim = nb.typed.Dict.empty(
-    key_type=int32,
-    value_type=nb.typeof(t_aim_value)
-)
-
-t_shooter_value = np.array([[2], [2]])
-
-t_shooter = nb.typed.Dict.empty(
-    key_type=int32,
-    value_type=nb.typeof(t_aim_value)
-)
-
-t_moves_by_id = nb.typed.Dict.empty(
-    key_type=int32,
-    value_type=int32[:]
-)
-
-double_int = nb.typeof(np.full((1, 1), 1))
-
-
-# Define the dictionary types with Numba
-spec = [
-    ("board", nb.typeof(np.full((1, 1), 1))),
-    ('turn', int32),
-    ('player_turn', int32),
-    ('width', int32),
-    ('height', int32),
-    ('stop', boolean),
-    ('last_move', int32[:, :]),
-    ('save_game', boolean),
-    ('move_history', types.ListType(int32[:, :])),
-    ('game_attacks', types.ListType(types.ListType(int32[:]))),
-    ('locations', types.DictType(int32, int32[:])), 
-    ('aim', types.DictType(int32, types.ListType(int32[:] ))),
-    ('shooter', types.DictType(int32, types.ListType(int32[:] ))),
-    ('value_by_id', int32[:]),
-    ('form_by_id', int32[:]),
-    ('team_by_id', int32[:]),
-    ('moves_by_id', types.DictType(int32, types.DictType(int32, int32[:]))),
-    ('pieces_in_opponent_site', int32[:, :]),
-    ('iview', int32),
-    ('winner', int32),
-    ('initial_number_of_real_pieces', int32),
-    ('initial_number_of_pieces', int32),
-    ('BLACK_ID', int32[:]),
-    ('WHITE_ID', int32[:]),
-
-    ('ID_BLACK_PYRAMID', int32),
-    ('FIRST_FAKE_ID_BLACK', int32),
-    ('FAKE_ID_BLACK', int32[:]),
-
-    ('ID_WHITE_PYRAMID', int32),
-    ('FIRST_FAKE_ID_WHITE', int32),
-    ('FAKE_ID_WHITE', int32[:])
-]
-
-
-
-
-
-@jitclass(spec)
 class Game:
     #fonctions d'évaluation, les pyramides sont comptées un peu double
-    
-    
     def piece_number(self):
-        nbr_white = sum(map(lambda i:self.is_alive(i), self.WHITE_ID))
-        nbr_pyr_white = sum(map(lambda i:self.is_alive(i), self.FAKE_ID_WHITE))
+        nbr_white = sum(map(lambda i:self.is_alive(i), WHITE_ID))
+        nbr_pyr_white = sum(map(lambda i:self.is_alive(i), FAKE_ID_WHITE))
 
-        nbr_black = sum(map(lambda i:self.is_alive(i), self.BLACK_ID))
-        nbr_pyr_black = sum(map(lambda i:self.is_alive(i), self.FAKE_ID_BLACK))
+        nbr_black = sum(map(lambda i:self.is_alive(i), BLACK_ID))
+        nbr_pyr_black = sum(map(lambda i:self.is_alive(i), FAKE_ID_BLACK))
         #return (nbr_white, nbr_pyr_white, nbr_black, nbr_pyr_black)
         return (nbr_white + nbr_pyr_white, nbr_black + nbr_pyr_black)
-    
 
-    
     def piece_rate(self):
         a,b = self.piece_number()
         return (a/30, b/29)
 
-
-    
     def piece_sum(self):
-        sum_white = sum(map(lambda i:self.value_by_id(i), self.WHITE_ID))
-        sum_pyr_white = sum(map(lambda i:self.value_by_id(i), self.FAKE_ID_WHITE))
+        sum_white = sum(map(lambda i:self.value_by_id(i), WHITE_ID))
+        sum_pyr_white = sum(map(lambda i:self.value_by_id(i), FAKE_ID_WHITE))
 
-        sum_black = sum(map(lambda i:self.value_by_id(i), self.BLACK_ID))
-        sum_pyr_black = sum(map(lambda i:self.value_by_id(i), self.FAKE_ID_BLACK))
+        sum_black = sum(map(lambda i:self.value_by_id(i), BLACK_ID))
+        sum_pyr_black = sum(map(lambda i:self.value_by_id(i), FAKE_ID_BLACK))
         return (sum_white + sum_pyr_white, sum_black + sum_pyr_black)
 
-
-    
     def isobarycenter(self, player):
-        id_pawns = self.BLACK_ID if player else self.WHITE_ID
+        id_pawns = BLACK_ID if player else WHITE_ID
         x, y, n = 0, 0, 0
         for i in id_pawns:
             if self.is_alive(i):
@@ -193,7 +121,7 @@ class Game:
         return(y-mid_y, x-mid_x)
     
     def dispersion(self, player):
-        id_pawns = self.BLACK_ID if player else self.WHITE_ID
+        id_pawns = BLACK_ID if player else WHITE_ID
         ey, ex = self.isobarycenter(player)
         dx, dy, n = 0, 0, 0
         for i in id_pawns:
@@ -204,7 +132,7 @@ class Game:
         return (dy/n, dx/n)
     
     def progress(self, player):
-        id_pawns = self.BLACK_ID if player else self.WHITE_ID
+        id_pawns = BLACK_ID if player else WHITE_ID
         repere =  0 if player else 15
         y, n = 0, 0
         #print("player", player)
@@ -230,16 +158,196 @@ class Game:
                 white_dist_to_center_x - black_dist_to_center_x,
                 white_progress - black_progress)
     
-    def old_init_board(self):
-        with objmode():
+    def update_view(self):
+        self.init_view(self.iview)
 
-            print("test")
-            f = open("./ex_module/id_board.json", "r")
-            data = loads(f.read())
-            f.close()
+    def delta_iview(self, n: int):
+        self.iview += n
+        if self.iview < 0:
+            self.iview += self.turn + 1
+        if self.iview > self.turn:
+            self.iview -= (self.turn + 1)
+        print(f"Current view {self.iview}/{self.turn}")
+        self.update_view()
 
-        self.board = np.array(data, dtype=int32)
+    def set_view(self, n: int):
+        print(f"set_view {n}")
+        self.iview = n
+        self.update_view()
+
+    def on_press_key(self, key):
+        if not self.save_game:
+            print("Pas de view")
+            return
+        if self.turn > 100:
+            if key == Key.down:
+                self.delta_iview(-100)
+            if key == Key.up:
+                self.delta_iview(100)
+        if key == Key.left:
+            self.delta_iview(-1)
+        if key == Key.right:
+            self.delta_iview(1)
+        # print(key)
+        if key == KeyCode.from_char('b'):
+            self.set_view(0)
+        if key == KeyCode.from_char('é'):
+            self.set_view(self.turn)
+
+    def get_location_at_time(self, nid, time):
+        if nid in FAKE_ID_BLACK:
+            nid = ID_BLACK_PYRAMID
+        if nid in FAKE_ID_WHITE:
+            nid = ID_WHITE_PYRAMID
+        # print(self.moves_by_id[nid])
+        # print(self.moves_by_id[nid].keys())
+        # print(list(self.moves_by_id[nid].keys()))
+        keys = np.array(list(self.moves_by_id[nid].keys()))
+        # print(keys)
+        keys = keys[keys < time]
+
+        # print(keys)
+        t = np.max(keys)
+        return self.moves_by_id[nid][t]
+
+    def is_alive_at_time(self, nid, time):
+        return self.get_location_at_time(nid, time) != -1
+
+    def init_view(self, time):
+        self.canvas.delete("suppress")
+        for nid in range(self.initial_number_of_real_pieces):
+            if not self.is_alive_at_time(nid, time):
+                continue
+
+            point = self.value_by_id[nid]
+            form = self.form_by_id[nid]
+            team = self.team_by_id[nid]
+            (j, i) = self.get_location_at_time(nid, time)
+            color = "Blue" if team == 0 else "Red"
+            if form == 1:
+                self.canvas.create_oval(i * 50 + 5, j * 50 + 5, (i + 1) * 50 - 5, (j + 1) * 50 - 5,
+                                        outline=color,
+                                        fill="WHITE", width=2, tags="suppress")
+            if form == 2:
+                dp = np.array([(-20, 20), (20, 20), (0, -20)])
+                points = (i * 50 + 25, j * 50 + 25) + dp
+                self.canvas.create_polygon(points.flatten().tolist(), outline=color, fill="WHITE", width=2, tags="suppress")
+            if form == 3:
+                self.canvas.create_rectangle(i * 50 + 5, j * 50 + 5, (i + 1) * 50 - 5, (j + 1) * 50 - 5,
+                                             outline=color, fill="WHITE", width=2, tags="suppress")
+
+            if form <= 3:
+                self.canvas.create_text(i * 50 + 25, j * 50 + 25, text=str(point) + "(" + str(nid) + ")", tags="suppress")
+            else:
+                self.canvas.create_text(i * 50 + 25, j * 50 + 25, text=str(point) + "(" + str(nid) + ")",
+                                        fill=color, tags="suppress")
+            
+
+        if time > 0:
+            (y, x), (y2, x2) = self.move_history[time - 1]
+            self.canvas.create_line(x * 50 + 25, y * 50 + 25, x2 * 50 + 25, y2 * 50 + 25, arrow=tk.LAST,
+                                    fill="GREEN", width=2, tags="suppress")
+            for attacks in self.game_attacks[self.iview - 1]:
+                (type_attack, attackers, attacked) = attacks
+                n2 = attacked
+                (y2, x2) = self.get_location_at_time(n2, time - 1)
+                color_attack = ""
+                if type_attack == TypeAttack.MEET:
+                    color_attack = "deepskyblue4"  # bleu foncé
+                elif type_attack == TypeAttack.GALLOWS:
+                    color_attack = "lightslateblue"  # violet
+                elif type_attack == TypeAttack.AMBUSH:
+                    color_attack = "orangered1"
+                elif type_attack == TypeAttack.PROGRESSION_A \
+                        or type_attack == TypeAttack.PROGRESSION_G \
+                        or type_attack == TypeAttack.PROGRESSION_H:
+                    color_attack = "cyan"
+                elif type_attack == TypeAttack.ASSAULT:
+                    color_attack = "pink"
+                elif type_attack == TypeAttack.SIEGE:
+                    color_attack = "chocolate4"  # marron
+                if SHOW_PRINT:
+                    print(attacks)
+                for attacker in attackers:
+                    n = attacker
+                    (y, x) = self.get_location_at_time(n, time)
+                    self.canvas.create_line(x * 50 + 25, y * 50 + 25, x2 * 50 + 25, y2 * 50 + 25, arrow=tk.LAST,
+                                            fill=color_attack, width=2, tags="suppress")
+
+        self.canvas.update()
+
+    def init_frame(self):
+        # Ajout des éléments à la liste
+        for i in range(1, self.turn + 1):
+            if not self.game_attacks[i - 1]:
+                continue
+            types = set()
+            # add star
+            star = ""  # s’il y a une pyramide
+            for attack in self.game_attacks[i - 1]:
+                (type, attackers, attacked) = attack
+                if self.form_by_id[attacked] == 4:
+                    star = "*"
+                types.add(type)
+            label = ""
+            for possibilities in TypeAttack:
+                if possibilities in types:
+                    label += possibilities.value
+            button = tk.Button(self.frame, text=f"{i}:{label}{star} ", command=partial(self.set_view, i))
+            button.pack(fill=tk.BOTH)
+
+    def scrolllistbox2(self, event):
+        self.canvas2.yview_scroll(int(-1 * (event.delta / 60)), "units")
+
+    def show_game(self):
+        if not self.save_game:
+            return
         
+        print(f'Temps d\'initialisation : {time.time() - self.start_time:.3}s')
+        self.iview = self.turn
+
+        self.display = tk.Tk()
+        self.display.config(width=500, height=800)
+        self.display.geometry("500x800")
+        self.display.title('Grid')
+        self.display.columnconfigure(0, weight=5)
+        # self.display.columnconfigure(1, weight=1)
+
+        self.canvas = tk.Canvas(self.display, width=400, height=800, bg='#FFFFFF')
+        # ligne
+        
+        list(map( lambda j : self.canvas.create_line(0, j * 50, self.width * 50, j * 50, fill="grey"), range(1, self.height)))
+        
+        list(map (lambda i: self.canvas.create_line(i * 50, 0, i * 50, self.height * 50, fill="grey"), range(1, self.width)))
+        
+        self.init_view(0)
+        self.canvas.pack(side="left")
+        # Comme fichier sroll_frame
+        self.canvas2 = tk.Canvas(self.display, width=100, height=800)
+        self.canvas2.pack(fill=tk.BOTH, expand=True)
+
+        self.canvas2.bind('<Configure>', lambda e: self.canvas2.configure(scrollregion=self.canvas2.bbox('all')))
+        self.frame = tk.Frame(self.canvas2, width=100, height=800)
+        self.canvas2.create_window((0, 0), window=self.frame, anchor="nw")
+        self.canvas2.bind_all("<MouseWheel>", self.scrolllistbox2)
+
+        self.init_frame()
+        # self.frame.pack(side="right", expand=True, fill=tk.BOTH)
+
+        listener = keyboard.Listener(on_press=self.on_press_key)
+        listener.start()  # start thread
+
+        self.display.mainloop()
+
+        listener.stop()  # stop thread
+        listener.join()  # wait till thread really ends its job
+
+    def init_board(self):
+        pre = "./boards/"
+        f = open(pre + "id_board.json", "r")
+        self.board = np.array(loads(f.read()))
+        f.close()
+
     # Vérifie si la position est bien dans le jeu
     def in_board(self, j, i):
         return 0 <= j < self.height and 0 <= i < self.width
@@ -251,8 +359,8 @@ class Game:
         return self.board[y][x]
 
     # Vérifie si une case est libre, sans pion
-    def is_empty(self, y, x):
-        return self.board[y, x] == -1
+    def is_empty(self, j, i):
+        return np.equal(self.board[j][i], -1).all()
 
 
     # On récupère les mouvements réguliers, on doit vérifier que tout le trajet est libre
@@ -381,7 +489,7 @@ class Game:
         available_moves = []  # 1 move = 2 couples (y, x)
         # pour toutes les cases non vides, on ajoute ses coups possibles dans la liste des coups
         
-        ids = self.BLACK_ID if self.player_turn else self.WHITE_ID #Si c'est le joueur 1: blanc, sinon noir
+        ids = BLACK_ID if self.player_turn else WHITE_ID #Si c'est le joueur 1: blanc, sinon noir
         
         for i in ids:
             if not self.is_alive(i):
@@ -409,12 +517,12 @@ class Game:
         ((old_y, old_x), (current_y, current_x)) = self.last_move
         neighbours = np.unique(self.get_pieces_to_check_for_siege(old_y, old_x) + self.get_pieces_to_check_for_siege(current_y, current_x) + self.board[current_y][current_x])
         for i in neighbours:
-            if i < self.FIRST_FAKE_ID_WHITE:
+            if i < FIRST_FAKE_ID_WHITE:
                 self.update_fast_move(i)
 
     def get_value_fast_moves(self):
         for i in range(self.initial_number_of_real_pieces):
-            if i < self.FIRST_FAKE_ID_WHITE and self.is_alive(i):
+            if i < FIRST_FAKE_ID_WHITE and self.is_alive(i):
                 for coup in self.fast_moves[i]:
                     yield coup
 
@@ -439,14 +547,14 @@ class Game:
         self.locations[self.board[y + dy][x + dx]] = (y + dy, x + dx)  # je trouve ça fun comme ligne
         #print(y+dy, x+dx)
         self.moves_by_id[self.board[y + dy][x + dx]][self.turn] = (y + dy, x + dx)
-        if nid == self.ID_WHITE_PYRAMID:
-            for i in self.FAKE_ID_WHITE:
+        if nid == ID_WHITE_PYRAMID:
+            for i in FAKE_ID_WHITE:
                 if self.is_alive(i):
-                    self.locations[i] = self.locations[self.ID_WHITE_PYRAMID]
-        if nid == self.ID_BLACK_PYRAMID:
-            for i in self.FAKE_ID_BLACK:
+                    self.locations[i] = self.locations[ID_WHITE_PYRAMID]
+        if nid == ID_BLACK_PYRAMID:
+            for i in FAKE_ID_BLACK:
                 if self.is_alive(i):
-                    self.locations[i] = self.locations[self.ID_BLACK_PYRAMID]
+                    self.locations[i] = self.locations[ID_BLACK_PYRAMID]
 
         # Met à jour pour check_end
         if self.team_by_id[nid] == 0:
@@ -477,7 +585,7 @@ class Game:
         if not self.is_alive(nid):
             return
         # si il est en vie
-        if nid < self.FIRST_FAKE_ID_WHITE:
+        if nid < FIRST_FAKE_ID_WHITE:
             # si c’est une attaque "totale"
             (y, x) = self.locations[nid]
             self.set_board_empty(y, x)
@@ -494,22 +602,22 @@ class Game:
         self.reset_links_of_pawn(nid)
         self.locations[nid] = -1
 
-        if nid in self.FAKE_ID_WHITE:
-            self.value_by_id[self.ID_WHITE_PYRAMID] -= self.value_by_id[nid]
+        if nid in FAKE_ID_WHITE:
+            self.value_by_id[ID_WHITE_PYRAMID] -= self.value_by_id[nid]
             floor_pyramid_white = 0
-            for i in self.FAKE_ID_WHITE:
+            for i in FAKE_ID_WHITE:
                 if self.is_alive(i):
                     floor_pyramid_white += 1
             if floor_pyramid_white == 0:
-                self.kill(self.ID_WHITE_PYRAMID)
-        if nid in self.FAKE_ID_BLACK:
-            self.value_by_id[self.ID_BLACK_PYRAMID] -= self.value_by_id[nid]
+                self.kill(ID_WHITE_PYRAMID)
+        if nid in FAKE_ID_BLACK:
+            self.value_by_id[ID_BLACK_PYRAMID] -= self.value_by_id[nid]
             floor_pyramid_black = 0
-            for i in self.FAKE_ID_BLACK:
+            for i in FAKE_ID_BLACK:
                 if self.is_alive(i):
                     floor_pyramid_black += 1
             if floor_pyramid_black == 0:
-                self.kill(self.ID_BLACK_PYRAMID)
+                self.kill(ID_BLACK_PYRAMID)
 
     def execute_all_attacks(self, attacks):
         for attack in attacks:
@@ -628,7 +736,7 @@ class Game:
             for dt in range(1, 1 + min(7 - x, 15 - y)):
                 if not self.is_empty(y + dt, x + dt) and (y + dt, x + dt) not in not_considered:
                     yield (first, self.board[y + dt][x + dt])
-
+                    break
 
     def check_end(self):
         for team in [0, 1]:
@@ -751,19 +859,31 @@ class Game:
             # print("remove ", nid, " from ", mid, " shooter ranged")
             self.shooter[mid][1].remove(nid)
 
-
-
     def set_attack_defense(self):
         # initialise le dictionnaire
-        
-        self.aim = nb.typed.Dict.empty(key_type=types.int64, value_type=types.ListType(types.int64[:]))
-        self.shooter = nb.typed.Dict.empty(key_type=types.int64, value_type=types.ListType(types.int64[:]))
+        self.aim = {0: [[], []], 1: [[], []], 2: [[], []], 3: [[], []], 4: [[], []], 5: [[], []], 6: [[], []],
+                    7: [[], []], 8: [[], []], 9: [[], []], 10: [[], []], 11: [[], []], 12: [[], []], 13: [[], [29]],
+                    14: [[], []], 15: [[], []], 16: [[], []], 17: [[], []], 18: [[], []], 19: [[], []], 20: [[], []],
+                    21: [[], []], 22: [[], []], 23: [[], []], 24: [[], []], 25: [[], []], 26: [[], []], 27: [[], []],
+                    28: [[], []], 29: [[], [13]], 30: [[], []], 31: [[], []], 32: [[], []], 33: [[], []], 34: [[], []],
+                    35: [[], []], 36: [[], []], 37: [[], []], 38: [[], []], 39: [[], []], 40: [[], []], 41: [[], []],
+                    42: [[], []], 43: [[], []], 44: [[], []], 45: [[], []], 46: [[], []], 47: [[], []], 48: [[], []],
+                    49: [[], []], 50: [[], []], 51: [[], []], 52: [[], []], 53: [[], []], 54: [[], []], 55: [[], []],
+                    56: [[], []], 57: [[], []], 58: [[], []]}
+        self.shooter = {0: [[], []], 1: [[], []], 2: [[], []], 3: [[], []], 4: [[], []], 5: [[], []], 6: [[], []],
+                        7: [[], []], 8: [[], []], 9: [[], []], 10: [[], []], 11: [[], []], 12: [[], []], 13: [[], [29]],
+                        14: [[], []], 15: [[], []], 16: [[], []], 17: [[], []], 18: [[], []], 19: [[], []],
+                        20: [[], []], 21: [[], []], 22: [[], []], 23: [[], []], 24: [[], []], 25: [[], []],
+                        26: [[], []], 27: [[], []], 28: [[], []], 29: [[], [13]], 30: [[], []], 31: [[], []],
+                        32: [[], []], 33: [[], []], 34: [[], []], 35: [[], []], 36: [[], []], 37: [[], []],
+                        38: [[], []], 39: [[], []], 40: [[], []], 41: [[], []], 42: [[], []], 43: [[], []],
+                        44: [[], []], 45: [[], []], 46: [[], []], 47: [[], []], 48: [[], []], 49: [[], []],
+                        50: [[], []], 51: [[], []], 52: [[], []], 53: [[], []], 54: [[], []], 55: [[], []],
+                        56: [[], []], 57: [[], []], 58: [[], []]}
 
     def set_moves_by_id(self):
         for i in range(self.initial_number_of_real_pieces):
             self.moves_by_id[i] = {-1: self.locations[i]}
-
-
 
     def reset_links_of_pawn(self, nid):
         # doit modifier aim et targeted_by
@@ -940,38 +1060,28 @@ class Game:
                     for floor_b in self.develop_pyramid(bid):
                         self.add_line(floor_n, floor_b)
 
-    def old_set_locations(self):
-        for y in range(16):
-            for x in range(8):
-                if not self.is_empty(y, x):
-                    self.locations[self.board[y][x]] = (y, x)
-        for i in self.FAKE_ID_BLACK:
-            self.locations[i] = self.locations[self.ID_BLACK_PYRAMID]
-        for i in self.FAKE_ID_WHITE:
-            self.locations[i] = self.locations[self.ID_WHITE_PYRAMID]
-        # print(self.locations)
-
     def set_locations(self):
         for y in range(16):
             for x in range(8):
                 if not self.is_empty(y, x):
-                    self.locations[self.board[y][x]] = np.array([y, x], dtype=np.int32)
-        for i in self.FAKE_ID_BLACK:
-            self.locations[i] = self.locations[self.ID_BLACK_PYRAMID]
-        for i in self.FAKE_ID_WHITE:
-            self.locations[i] = self.locations[self.ID_WHITE_PYRAMID]
+                    self.locations[self.board[y][x]] = (y, x)
+        for i in FAKE_ID_BLACK:
+            self.locations[i] = self.locations[ID_BLACK_PYRAMID]
+        for i in FAKE_ID_WHITE:
+            self.locations[i] = self.locations[ID_WHITE_PYRAMID]
+        # print(self.locations)
 
     # en fait c’est nul ça, si la pyramide attaque ça ne veut pas dire que toutes les pièces attaquent
     def develop_pyramid(self, nid):
         # Argument : des identifiants
         # Sortie : les identifiants, et tous les identifiants de la pyramide si elle y est
         res = [nid]
-        if self.ID_WHITE_PYRAMID == nid:
-            for i in self.FAKE_ID_WHITE:
+        if ID_WHITE_PYRAMID == nid:
+            for i in FAKE_ID_WHITE:
                 if self.is_alive(i):
                     res.append(i)
-        if self.ID_BLACK_PYRAMID == nid:
-            for i in self.FAKE_ID_BLACK:
+        if ID_BLACK_PYRAMID == nid:
+            for i in FAKE_ID_BLACK:
                 if self.is_alive(i):
                     res.append(i)
 
@@ -997,17 +1107,17 @@ class Game:
                 # Rappel : ce sont des combinaisons ok
                 piece_i = id_pieces[i]
                 piece_j = id_pieces[j]
-                if piece_i == self.ID_WHITE_PYRAMID and piece_j in self.FAKE_ID_WHITE:
+                if piece_i == ID_WHITE_PYRAMID and piece_j in FAKE_ID_WHITE:
                     continue
-                if piece_j == self.ID_WHITE_PYRAMID and piece_i in self.FAKE_ID_WHITE:
+                if piece_j == ID_WHITE_PYRAMID and piece_i in FAKE_ID_WHITE:
                     continue
-                if piece_i == self.ID_BLACK_PYRAMID and piece_j in self.FAKE_ID_BLACK:
+                if piece_i == ID_BLACK_PYRAMID and piece_j in FAKE_ID_BLACK:
                     continue
-                if piece_j == self.ID_BLACK_PYRAMID and piece_i in self.FAKE_ID_BLACK:
+                if piece_j == ID_BLACK_PYRAMID and piece_i in FAKE_ID_BLACK:
                     continue
-                if piece_j in self.FAKE_ID_BLACK and piece_i in self.FAKE_ID_BLACK:
+                if piece_j in FAKE_ID_BLACK and piece_i in FAKE_ID_BLACK:
                     continue
-                if piece_j in self.FAKE_ID_WHITE and piece_i in self.FAKE_ID_WHITE:
+                if piece_j in FAKE_ID_WHITE and piece_i in FAKE_ID_WHITE:
                     continue
                 yield (piece_i, piece_j)
 
@@ -1062,16 +1172,16 @@ class Game:
     
 
     def check_pyramid_has_form(self, nid, required_form):
-        if nid == self.ID_WHITE_PYRAMID:
-            first = self.FIRST_FAKE_ID_WHITE + required_form * 2
+        if nid == ID_WHITE_PYRAMID:
+            first = FIRST_FAKE_ID_WHITE + required_form * 2
             second = first + 1
             return self.is_alive(first) or self.is_alive(second)
 
-        if nid == self.ID_BLACK_PYRAMID:
+        if nid == ID_BLACK_PYRAMID:
             if required_form == 0:
-                return self.is_alive(self.FIRST_FAKE_ID_BLACK)
+                return self.is_alive(FIRST_FAKE_ID_BLACK)
             else:
-                first = self.FIRST_FAKE_ID_WHITE + required_form * 2 - 1
+                first = FIRST_FAKE_ID_WHITE + required_form * 2 - 1
                 second = first + 1
                 return self.is_alive(first) or self.is_alive(second)
 
@@ -1130,47 +1240,88 @@ class Game:
         return attacks
 
 
-    def __init__(self):
-        with objmode():
-            self.start_time = time.time()
-        #self.board = np.zeros((16, 8), dtype=np.int32)
 
-        self.board = np.array([[-1, -1, -1, -1, -1, -1, -1, -1], [-1, -1, -1, -1, -1, -1, -1, -1], [0, 1, -1, -1, -1, -1, 2, 3], [4, 5, 6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17, 18, 19], [-1, -1, 20, 21, 22, 23, -1, -1], [-1, -1, -1, -1, -1, -1, -1, -1], [-1, -1, -1, -1, -1, -1, -1, -1], [-1, -1, -1, -1, -1, -1, -1, -1], [-1, -1, -1, -1, -1, -1, -1, -1], [-1, -1, 24, 25, 26, 27, -1, -1], [28, 29, 30, 31, 32, 33, 34, 35], [36, 37, 38, 39, 40, 41, 42, 43], [44, 45, -1, -1, -1, -1, 46, 47], [-1, -1, -1, -1, -1, -1, -1, -1], [-1, -1, -1, -1, -1, -1, -1, -1]], dtype=int32)
+    def __init__(self, view=False, auto = False):
+        self.start_time = time.time()
+        self.board = []  #id
+        self.init_board()
 
-        self.turn = 0
-        self.player_turn = 0
+        self.turn = 0  # numéro du tour
+        self.player_turn = 0  # numéro de celui à jouer
         self.width = 8
         self.height = 16
+        # fake id: blanche: 37 on rajoute 48--53, noire: 11 on rajoute 54-58
         self.stop = False
-        self.last_move = np.zeros((2, 2), dtype=np.int32)
+        self.last_move = ((-1, -1), (-1, -1))
+        self.view = view
         self.save_game = True
-        self.move_history = nb.typed.List.empty_list(int32[:, :])
-        self.game_attacks = nb.typed.List.empty_list(types.ListType(int32[:]))
-        self.locations = nb.typed.Dict.empty(key_type=int32, value_type=int32[:])
-        self.aim = nb.typed.Dict.empty(key_type=int32, value_type=nb.typed.List.empty_list(int32[:]))
-        self.shooter = nb.typed.Dict.empty(key_type=int32, value_type=nb.typed.List.empty_list(int32[:]))
+        self.move_history = []
+        # game_attacks est toujours sauvegardé
+        self.game_attacks = []  # l’élément i représente l’ensemble des attaques après le coup i, une attaque est sous
 
-        self.value_by_id = np.array([49, 121, 225, 163, 28, 66, 36, 30, 59, 64, 120, 190, 16, 12, 9, 25, 49, 81, 90, 100, 3, 5, 7, 9, 8, 6, 4, 2, 81, 72, 64, 36, 16, 4, 6, 9, 153, 91, 49, 42, 20, 25, 45, 15, 289, 169, 81, 25, 1, 4, 9, 16, 25, 36, 16, 25, 36, 49, 64], dtype=np.int32)
-        self.form_by_id = np.array([3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 3, 4, 2, 2, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 2, 2, 3, 4, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 1, 1, 2, 2, 3, 3, 1, 2, 2, 3, 3], dtype=np.int32)
-        self.team_by_id = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1], dtype=np.int32)
-        self.moves_by_id = nb.typed.Dict.empty(key_type=int32, value_type=nb.typed.Dict.empty(key_type=int32, value_type=int32[:]))
-        self.pieces_in_opponent_site = np.zeros((2, 24), dtype=np.int32)
-        self.winner = -1
+        self.locations = {}  # Permet de connaître la position d’une pièce, -1 si elle n’existe plus
+        self.aim = {}  # Optimisation, attack, pièce qu’elle attaque
+        self.shooter = {}  # Optimisation, defense, pièce qui l’attaque
+
+        self.value_by_id = np.array([49, 121, 225, 163, 28, 66, 36, 30, 59, 64, 120, 190, 16, 12, 9, 25, 49, 81, 90, 100, 3, 5, 7, 9, 8, 6, 4, 2,
+         81, 72, 64, 36, 16, 4, 6, 9, 153, 91, 49, 42, 20, 25, 45, 15, 289, 169, 81, 25, 1, 4, 9, 16, 25, 36, 16, 25,
+         36, 49, 64])
+        self.form_by_id = np.array([3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 3, 4, 2, 2, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 2, 2, 3,
+         4, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 1, 1, 2, 2, 3, 3, 1, 2, 2, 3, 3])
+        self.team_by_id = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
+        self.moves_by_id = {}
+        self.pieces_in_opponent_site = [[], []]
+
+        # print("direction", self.get_all_neighbours_with_directions(7, 4))
+
+        # Ne considère que les mêlées
         self.initial_number_of_real_pieces = 48
         self.initial_number_of_pieces = 59
-        self.ID_WHITE_PYRAMID = 37
-        self.ID_BLACK_PYRAMID = 11
-
-        self.BLACK_ID = np.array(list(range(0, 24)))
-        self.WHITE_ID = np.array(list(range(24, 48)))
-
-        self.FAKE_ID_WHITE = np.array(list(range(48, 53 + 1)), dtype = int32)
-        self.FIRST_FAKE_ID_WHITE = self.FAKE_ID_WHITE[0]
-        self.FAKE_ID_BLACK = np.array(list(range(54, 58 + 1)), dtype = int32)
-        self.FIRST_FAKE_ID_BLACK = self.FAKE_ID_BLACK[0]
         self.set_locations()
         self.set_attack_defense()
         self.set_moves_by_id()
+        # print(self.moves_by_id)
+        # print(self.aim)
+        # print(self.shooter)
+        # la forme ([liste attaquant sous forme (ay, ax)], (y, x))
+        self.iview = -1
+        self.winner = -1
+        # self.test_new_board()
+
+        if SHOW_PRINT:
+            print(f'Temps d\'initialisation : {time.time() - self.start_time:.3}s')
+        nbr_coups = 0
+
+        #self.fast_moves = {}
+        #self.init_fast_moves()
+        if not auto:
+            return
+        self.max_turn = 1000
+        for _ in range(0, self.max_turn):  # ne sert à rien de dépasser 2000
+            if self.stop:
+                break      
+            
+            coups =  self.get_game_available_moves()
+            if len(coups) == 0:
+                break
+            coup = coups[random.randint(0, len(coups)-1)]
+            self.play_move(coup)
+            # print_board(self.board)
+        self.is_finished = self.turn == self.max_turn
+        if SHOW_PRINT:
+            print(self.turn, self.max_turn)
+            print(f"Finished: {self.is_finished}")
+        if SHOW_PRINT:
+            print("Fin en", self.turn, "tours")
+        self.time_exe = time.time() - self.start_time
+        
+        print(f'Temps d\'exécution : {self.time_exe:.3}s')
+        if SHOW_PRINT:
+            print("Coups joués ", self.turn)
+            print("nbr_coups", nbr_coups / self.turn)
+        if view:
+            self.show_game()
 
     def play_move(self, move):
         #for i in range(1000):
@@ -1197,7 +1348,6 @@ class Game:
         # for i in available_aim_attacks:
         #    print("AIMSHOOTER detects ", self.turn, ": ", str(i))
 
-        
         self.game_attacks.append([])
         self.game_attacks[self.turn] = available_aim_attacks
         self.execute_all_attacks(available_aim_attacks)
@@ -1232,5 +1382,4 @@ def launch_games(number, must_be_completed = False):
 
 if __name__ == "__main__":
     print("main.py")
-    Game()
-    Game(auto=True)
+    Game(auto=True).show_game()
