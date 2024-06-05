@@ -26,7 +26,7 @@ class Client:
         self.client_socket.send(match.to_packet())
         
     def do_match(self, match : Match):
-        turns = 2000
+        turns = 4000
         depth = 1
 
         game = Game()
