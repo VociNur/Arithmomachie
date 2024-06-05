@@ -30,7 +30,7 @@ class AI:
         self.evaluations : Dict[int, Evaluation] = {}
         #self.init_gen_0() #init
         #return
-        self.server = MyServer(5)
+        self.server = MyServer(50)
         try:
             self.do_AI()
         except Exception as e:
