@@ -93,9 +93,10 @@ class AI:
         pre = "gen"
         if i != gen:
             print(f"Not good gen {gen}")
-            return -1, ()
+            return -1, []
         
         matches = []
+        print(type(matches))
         print("Last gen: ", i)
         with open(f"./match_save/{pre}{i}.txt", "r") as f:
             for line in f.readlines():
@@ -105,6 +106,7 @@ class AI:
             print(m.to_string())
             print(m.result)
         print("---------------------")
+        print(i, matches)
         return i, matches
     
     def save_actual_match(self, gen, m:Match):
@@ -112,7 +114,7 @@ class AI:
         pre = "gen"
         
         with open(f"./match_save/{pre}{gen}.txt", "a") as f:
-            f.write(m.to_string())
+            f.write(m.to_string() + "\n")
         print("Saved match", m.to_string())
         
     def get_population(self):
@@ -153,7 +155,10 @@ class AI:
     def do_matches(self, gen):
         self.server.match_to_play = []
         self.server.result = []
-        _, self.server.registered_result = self.get_matches_with_result(gen)
+        _, matches = self.get_matches_with_result(gen)
+        print("1", matches, type(matches))
+        self.server.registered_result = matches
+        print(self.server.registered_result, type(self.server.registered_result))
         print(self.server.registered_result)
         for i in range(self.get_population_count()):
             for j in range(i):
@@ -176,7 +181,8 @@ class AI:
                 for c in self.server.connected_computers:
                     if not c.is_connected:
                         self.server.match_to_play += c.actual_games
-                        self.server.connected_computers.remove(c)
+                        if c in self.server.connected_computers:
+                            self.server.connected_computers.remove(c)
                     #for i in range(int(max(2, int(c.cores)/6) - len(c.actual_games))):
                     for i in range(1-len(c.actual_games)): # pas d'autres choix pour l'instant, seul le proc est en PLS
                         try:
@@ -185,10 +191,11 @@ class AI:
                             print(e.with_traceback())
             for m in self.server.result:
                 if not m in self.server.registered_result:
+                    print("type:", type(self.server.registered_result))
                     self.server.registered_result.append(m)
                     self.save_actual_match(gen, m)
 
-            time.sleep(10)
+            time.sleep(0.3)
 
         print("Generation effectue")
 

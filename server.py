@@ -118,7 +118,8 @@ class MyServer:
                         print("Get match")
 
                         match = Match.from_string(data)
-                        computer.actual_games.remove(match)
+                        if match in computer.actual_games:
+                            computer.actual_games.remove(match)
                         self.result.append(match)
                         
                         

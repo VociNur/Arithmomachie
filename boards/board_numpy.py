@@ -181,3 +181,25 @@ for y in range(16):
 f = open("id_board.json", "w")
 f.write(json.dumps(id_board.tolist()))
 f.close()
+
+
+def save(board, name):
+
+    f = open(f"./boards/{name}.json", "w")
+    f.write(json.dumps(board.tolist()))
+    f.close()
+
+
+board = np.full((16, 8), -1)
+board[8, 4] = 27
+save(board, "circle")
+
+board = np.full((16, 8), -1)
+board[8, 4] = 34
+save(board, "triangle")
+
+board = np.full((16, 8), -1)
+board[8, 4] = 43
+save(board, "rectangle")
+
+

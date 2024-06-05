@@ -15,14 +15,10 @@ class Client:
 
     def fake_match(self, match: Match):
         print("Doing", match.to_string())
-        time.sleep(3)
+        time.sleep(0.3)
         result = 1
         match.result = result
 
-        print(match.to_string())
-        if not self.is_connected:
-            print("Not still connected")
-            return
         self.client_socket.send(match.to_packet())
         
     def do_match(self, match : Match):
@@ -45,7 +41,7 @@ class Client:
 
     def play_match_and_send_result(self, match: Match):
         
-        self.do_match(match)
+        self.fake_match(match)
         self.client_socket.send(match.to_packet())
         pass
 
@@ -54,7 +50,7 @@ class Client:
         host = "109.215.159.203"  # as both code is running on same pc
 
         #local
-        #host = socket.gethostname()
+        host = socket.gethostname()
 
         #l
         #host = "10.0.2.15"

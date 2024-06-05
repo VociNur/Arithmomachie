@@ -10,3 +10,5 @@ if "2" in a:
     print("non ok")
 
 print(a.values())
+print("1" in a)
+print(2 in a)
