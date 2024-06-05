@@ -41,7 +41,7 @@ class Client:
 
     def play_match_and_send_result(self, match: Match):
         
-        self.fake_match(match)
+        self.do_match(match)
         self.client_socket.send(match.to_packet())
         pass
 
@@ -50,7 +50,7 @@ class Client:
         host = "109.215.159.203"  # as both code is running on same pc
 
         #local
-        host = socket.gethostname()
+        #host = socket.gethostname()
 
         #l
         #host = "10.0.2.15"

@@ -195,7 +195,7 @@ class AI:
                     self.server.registered_result.append(m)
                     self.save_actual_match(gen, m)
 
-            time.sleep(0.3)
+            time.sleep(10)
 
         print("Generation effectue")
 
