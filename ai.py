@@ -83,12 +83,16 @@ class AI:
 
     def get_matches_with_result(self, gen):
         i=-1
+        print("avant")
         for path, dirs, files in os.walk("./match_save/"):
-            i=i+1
+            
+            for file in files:
+                i=i+1
+            
 
         pre = "gen"
         if i != gen:
-            print(f"Any matches with gen {gen}")
+            print(f"Not good gen {gen}")
             return -1, ()
         
         matches = []

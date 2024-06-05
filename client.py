@@ -40,7 +40,7 @@ class Client:
             eval_fct = match.ev1.evaluate if i % 2 == 0 else match.ev2.evaluate
             points, moves, move = Minmax().min_max(game, depth, eval_fct)
             game.play_move(move)
-        match.result = 0
+        match.result = game.winner
         return 
 
     def play_match_and_send_result(self, match: Match):
