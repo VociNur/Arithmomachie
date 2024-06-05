@@ -37,7 +37,7 @@ class Match:
 
             #print(self.date_creation)
             #print(value.date_creation)
-            return self.p1 == value.p1 and self.p2 == value.p2 and (abs(float(self.date_creation) - float(value.date_creation)) < eps)
+            return self.p1 == value.p1 and self.p2 == value.p2 and self.ev1 == value.ev1 and self.ev2 == value.ev2
         return False
 
     def to_packet(self):

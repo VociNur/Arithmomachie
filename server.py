@@ -13,6 +13,7 @@ class MyServer:
         self.message_separator = "|"
         self.match_to_play : List[Match] = []
         self.result : List[Match] = []
+        self.registered_result : List[Match] = []
         self.nbr_parties = 0
 
         self.connected_computers : List[Computer]= []
@@ -120,6 +121,7 @@ class MyServer:
                         match = Match.from_string(data)
                         computer.actual_games.remove(match)
                         self.result.append(match)
+                        
                         
                         
         finally:

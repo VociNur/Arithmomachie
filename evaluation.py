@@ -94,6 +94,16 @@ class Evaluation:
     def __str__(self) -> str:
         return f"Eval: {self.pieces_rate_coef} {self.y_dispersion_coef} {self.x_dispersion_coef} {self.y_center_coef} {self.x_center_coef} {self.progress_coef}"
     
+    def __eq__(self, value: object) -> bool:
+        eps = 10e-6
+        if type(value) is Evaluation:
+
+            #print(self.date_creation)
+            #print(value.date_creation)
+            self.round()
+            value.round() #au cas où 
+            return self.pieces_rate_coef == value.pieces_rate_coef and self.y_dispersion_coef == value.y_dispersion_coef and self.x_dispersion_coef == value.x_dispersion_coef and self.y_center_coef == value.y_center_coef and self.x_center_coef == value.x_center_coef and self.progress_coef == value.progress_coef
+        return False
 
 def test_class_method():
     eval = Evaluation(1, 2, 3, 4, 5, 6)

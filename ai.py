@@ -2,8 +2,9 @@
 
 
 from datetime import datetime
+import os
 import time
-from typing import Dict
+from typing import Dict, List
 from evaluation import Evaluation
 from match import Match
 from server import MyServer
@@ -21,31 +22,37 @@ class AI:
         self.evaluations[5] = Evaluation(0, 0, 0, 0, 1, 0)
         self.evaluations[6] = Evaluation(0, 0, 0, 0, 0, 1)
         self.evaluations[7] = Evaluation(1, 1, 1, 1, 1, 1)
-        self.population_count = 8
+        self.save_actual_gen(0, list(self.evaluations.values()))
 
 
     def __init__(self) -> None:
+        
         self.evaluations : Dict[int, Evaluation] = {}
-        self.population_count = 0
+        #self.init_gen_0() #init
+        #return
         self.server = MyServer(5)
         try:
             self.do_AI()
         except Exception as e:
-            print(e.format_exc())
+            print(e.with_traceback())
         finally:
             #self.server.stop_server()
             pass
     
     def do_AI(self):
-        self.init_gen_0()
-        for gen in range(5):
+        
+        for _ in range(5):
+            gen, pop = self.get_population()
+            self.evaluations = pop
+            print(f"Doing gen {gen}")
             print(f"génération {gen}")
-            self.do_matches()
+            print(self.evaluations)
+            self.do_matches(gen)
             if not self.server.running:
                 return
             
             points = {}
-            for i in range(self.population_count):
+            for i in range(self.get_population_count()):
                 points[i] = 0
             
             for m in self.server.result:
@@ -71,26 +78,89 @@ class AI:
                     self.evaluations[i].get_genomes_from(avg)
                 #self.evaluations[i].mutate()
                 self.evaluations[i].round()
-            self.save_population(gen)
+        self.save_actual_gen(gen+1, list(self.evaluations.values()))
         print("FINITO")
 
-    def save_population(self, gen):
-        dos = "./save_AI/"
-        now = datetime.now()
-        f = open(dos + str(now) + " gen " + str(gen) + ".txt", "w")
-        for i in range(self.population_count):
-            f.write(self.evaluations[i].to_string() + "\n")
-        f.close()
+    def get_matches_with_result(self, gen):
+        i=-1
+        for path, dirs, files in os.walk("./match_save/"):
+            i=i+1
 
-    def do_matches(self):
+        pre = "gen"
+        if i != gen:
+            print(f"Any matches with gen {gen}")
+            return -1, ()
+        
+        matches = []
+        print("Last gen: ", i)
+        with open(f"./match_save/{pre}{i}.txt", "r") as f:
+            for line in f.readlines():
+                matches.append(Match.from_string(line))
+        print("Matches of last gen:")
+        for m in matches:
+            print(m.to_string())
+            print(m.result)
+        print("---------------------")
+        return i, matches
+    
+    def save_actual_match(self, gen, m:Match):
+
+        pre = "gen"
+        
+        with open(f"./match_save/{pre}{gen}.txt", "a") as f:
+            f.write(m.to_string())
+        print("Saved match", m.to_string())
+        
+    def get_population(self):
+        gen=-1
+        for path, dirs, files in os.walk("./gen_save/"):
+            gen=gen+1
+            print(files)
+
+        pre = "gen"
+        if gen == -1:
+            return -1, ()
+        pop = {}
+        print("Last gen: ", gen)
+        with open(f"./gen_save/{pre}{gen}.txt", "r") as f:
+            for i, line in enumerate(f.readlines()):
+                pop[i] = (Evaluation.from_string(line))
+        return gen, pop
+    
+    def save_actual_gen(self, n_gen, gen:List[Evaluation]):
+        pre = "gen"
+        
+        with open(f"./gen_save/{pre}{n_gen}.txt", "w") as f:
+            for g in gen:
+                f.write(g.to_string() + "\n")
+        print("Saved gen", n_gen)
+
+    #def save_population(self, gen):
+    #    dos = "./save_AI/"
+    #    now = datetime.now()
+    #    f = open(dos + str(now) + " gen " + str(gen) + ".txt", "w")
+    #    for i in range(self.population_count):
+    #        f.write(self.evaluations[i].to_string() + "\n")
+    #    f.close()
+
+    def get_population_count(self):
+        return len(self.evaluations)
+
+    def do_matches(self, gen):
         self.server.match_to_play = []
         self.server.result = []
-        for i in range(self.population_count):
+        _, self.server.registered_result = self.get_matches_with_result(gen)
+        print(self.server.registered_result)
+        for i in range(self.get_population_count()):
             for j in range(i):
                 match = Match(j, self.evaluations[j], i, self.evaluations[i])
-                self.server.match_to_play.append(match) #1<=j<i<=n-1
+                if match in self.server.registered_result:
+                    print("Game already done", match.to_string())
+                else:
+                    print("Added game", match.to_string())
+                    self.server.match_to_play.append(match) #1<=j<i<=n-1
         self.server.nbr_parties = len(self.server.match_to_play)
-        print(f"Nombre de parties à jouer: {self.server.match_to_play }")
+        print(f"Nombre de joueurs {self.get_population_count()}")
 
         while self.server.nbr_parties != len(self.server.result):
             if not self.server.running:
@@ -105,7 +175,15 @@ class AI:
                         self.server.connected_computers.remove(c)
                     #for i in range(int(max(2, int(c.cores)/6) - len(c.actual_games))):
                     for i in range(1-len(c.actual_games)): # pas d'autres choix pour l'instant, seul le proc est en PLS
-                        self.server.give_match_to(c)
+                        try:
+                            self.server.give_match_to(c)
+                        except Exception as e:
+                            print(e.with_traceback())
+            for m in self.server.result:
+                if not m in self.server.registered_result:
+                    self.server.registered_result.append(m)
+                    self.save_actual_match(gen, m)
+
             time.sleep(10)
 
         print("Generation effectue")
