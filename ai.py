@@ -48,6 +48,7 @@ class AI:
             print(f"génération {gen}")
             print(self.evaluations)
             self.do_matches(gen)
+            print(self.server.running)
             if not self.server.running:
                 return
             
@@ -55,15 +56,18 @@ class AI:
             for i in range(self.get_population_count()):
                 points[i] = 0
             
-            for m in self.server.result:
+            for m in self.server.registered_result:
+                print(m.result)
                 if m.result == 0:
                     points[m.p1] += 1
                     continue
                 if m.result == 1:
                     points[m.p2] += 1
                     continue
-                print(type(m.result))
-                raise Exception(f"Match  with result {m.result} !")
+                #print(type(m.result))
+                if m.result != -1:
+                    raise Exception(f"Match  with result {m.result} !")
+            print(points)
             m = max(points.values())
             bests = []
             for key in points.keys():
@@ -73,12 +77,13 @@ class AI:
             print(m, bests)
             avg = Evaluation.from_average([self.evaluations[i] for i in bests])
             print(avg)
-            for i in range(self.population_count):
+            for i in range(self.get_population_count()):
                 if not i in bests:
                     self.evaluations[i].get_genomes_from(avg)
                 #self.evaluations[i].mutate()
                 self.evaluations[i].round()
         self.save_actual_gen(gen+1, list(self.evaluations.values()))
+        time.sleep(1)
         print("FINITO")
 
     def get_matches_with_result(self, gen):
@@ -96,7 +101,7 @@ class AI:
             return -1, []
         
         matches = []
-        print(type(matches))
+        #print(type(matches))
         print("Last gen: ", i)
         with open(f"./match_save/{pre}{i}.txt", "r") as f:
             for line in f.readlines():
@@ -120,8 +125,10 @@ class AI:
     def get_population(self):
         gen=-1
         for path, dirs, files in os.walk("./gen_save/"):
-            gen=gen+1
-            print(files)
+            
+            
+            for file in files:
+                gen=gen+1
 
         pre = "gen"
         if gen == -1:
@@ -155,27 +162,30 @@ class AI:
     def do_matches(self, gen):
         self.server.match_to_play = []
         self.server.result = []
+        
         _, matches = self.get_matches_with_result(gen)
-        print("1", matches, type(matches))
+        #print("1", matches, type(matches))
         self.server.registered_result = matches
-        print(self.server.registered_result, type(self.server.registered_result))
-        print(self.server.registered_result)
+        #print(self.server.registered_result, type(self.server.registered_result))
+        print("registered:", self.server.registered_result)
         for i in range(self.get_population_count()):
             for j in range(i):
                 match = Match(j, self.evaluations[j], i, self.evaluations[i])
                 if match in self.server.registered_result:
-                    print("Game already done", match.to_string())
+                    print("Game already done", match.to_string(), "don't consider the result")
                 else:
-                    print("Added game", match.to_string())
+                    print("Added game", match.to_string(), "dont consider the result")
                     self.server.match_to_play.append(match) #1<=j<i<=n-1
+
         self.server.nbr_parties = len(self.server.match_to_play)
         print(f"Nombre de joueurs {self.get_population_count()}")
-
-        while self.server.nbr_parties != len(self.server.result):
+        print(f"Nombre de game totales à recevoir: {self.get_population_count()*(self.get_population_count()-1)/2}")
+        
+        while self.get_population_count()*(self.get_population_count()-1)/2 != len(self.server.registered_result):
             if not self.server.running:
                 return
 
-            print(f"{len(self.server.result)}/{self.server.nbr_parties} finished game")
+            print(f"{len(self.server.registered_result)}/{self.server.nbr_parties} finished game")
             print(f"{len(self.server.get_current_matches())}/{self.server.nbr_parties} current game")
             if len(self.server.match_to_play) > 0:
                 for c in self.server.connected_computers:
@@ -191,7 +201,7 @@ class AI:
                             print(e.with_traceback())
             for m in self.server.result:
                 if not m in self.server.registered_result:
-                    print("type:", type(self.server.registered_result))
+                    #print("type:", type(self.server.registered_result))
                     self.server.registered_result.append(m)
                     self.save_actual_match(gen, m)
 

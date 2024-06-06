@@ -14,6 +14,7 @@ class Computer:
         self.cores = ""
         self.actual_games : List[Match] = []
         self.is_connected = True
+        self.nbr_game_done = 0
 
     def set_stat(self, system, node, cores):
         self.system = system
@@ -31,4 +32,4 @@ class Computer:
             print(f"{self.addr} {game.to_string()}")
 
     def __str__(self) -> str:
-        return f"{self.addr} {self.node} ({self.system}) [{self.cores}]"
+        return f"{self.addr} {self.node} ({self.system}) [{self.cores}] : {self.nbr_game_done} games"

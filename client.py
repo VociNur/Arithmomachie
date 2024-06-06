@@ -1,3 +1,4 @@
+import multiprocessing
 import socket
 from threading import Thread
 import time
@@ -42,7 +43,8 @@ class Client:
     def play_match_and_send_result(self, match: Match):
         
         self.do_match(match)
-        self.client_socket.send(match.to_packet())
+        if self.is_connected:
+            self.client_socket.send(match.to_packet())
         pass
 
     def client_program(self):
@@ -132,7 +134,7 @@ class Client:
         
 
 
-if __name__ == '__main__':
+def old_main():
     while True:
         print("relaunch")
         try:
@@ -140,3 +142,26 @@ if __name__ == '__main__':
             time.sleep(10)
         finally:
             print("relaunching")
+
+
+
+def run_client():
+    while True:
+        print("relaunch")
+        try:
+            Client()
+            time.sleep(10)
+        finally:
+            print("relaunching")
+
+
+if __name__ == '__main__':
+    processes = []
+
+    for i in range(multiprocessing.cpu_count()):
+        p = multiprocessing.Process(target=run_client)
+        p.start()
+        processes.append(p)
+
+    for p in processes:
+        p.join()

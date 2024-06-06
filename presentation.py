@@ -239,9 +239,9 @@ class Game:
                                              outline=color, fill="WHITE", width=2, tags="suppress")
 
             if form <= 3:
-                self.canvas.create_text(i * 50 + 25, j * 50 + 25, text=str(point) + "(" + str(nid) + ")", tags="suppress")
+                self.canvas.create_text(i * 50 + 25, j * 50 + 25, text=str(point), tags="suppress")
             else:
-                self.canvas.create_text(i * 50 + 25, j * 50 + 25, text=str(point) + "(" + str(nid) + ")",
+                self.canvas.create_text(i * 50 + 25, j * 50 + 25, text=str(point), # + "(" + str(nid) + ")"
                                         fill=color, tags="suppress")
             
 
@@ -345,9 +345,9 @@ class Game:
         listener.join()  # wait till thread really ends its job
 
     def init_board(self):
-        pre = "./boards/"
+        pre = "./boards/attack/meet/"
 
-        f = open(pre + ".json", "r")
+        f = open(pre + "circle.json", "r")
         self.board = np.array(loads(f.read()))
         f.close()
 
@@ -564,11 +564,13 @@ class Game:
             # S’il est dans l’équipe blanche
             if y >= 8 and y + dy <= 7:
                 # il vient de rentrer
+
                 self.pieces_in_opponent_site[0].append(nid)
 
             if y <= 7 and y + dy >= 8:
                 # il vient de sortir
-                self.pieces_in_opponent_site[0].remove(nid)
+                if nid in self.pieces_in_opponent_site[0]:
+                    self.pieces_in_opponent_site[0].remove(nid)
 
         if self.team_by_id[nid] == 1:
             # S’il est dans l’équipe noire
@@ -578,11 +580,15 @@ class Game:
 
             if y >= 8 and y + dy <= 7:
                 # il vient de sortir
-                self.pieces_in_opponent_site[1].remove(nid)
+                if nid in self.pieces_in_opponent_site[1]:
+                    self.pieces_in_opponent_site[1].remove(nid)
 
     def end_turn(self):
         self.turn += 1
         self.player_turn = (self.player_turn + 1) % 2
+
+        if self.alone:
+            self.player_turn = 0
 
     def kill(self, nid):
         if not self.is_alive(nid):
@@ -1253,6 +1259,7 @@ class Game:
 
 
     def __init__(self, view=False, auto = False, alone=False):
+        self.alone = alone
         self.start_time = time.time()
         self.board = []  #id
         self.init_board()
@@ -1312,8 +1319,6 @@ class Game:
         for _ in range(0, self.max_turn):  # ne sert à rien de dépasser 2000
             if self.stop:
                 break      
-            if alone:
-                self.player_turn = 0
             coups =  self.get_game_available_moves()
             if len(coups) == 0:
                 break

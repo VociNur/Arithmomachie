@@ -120,6 +120,7 @@ class MyServer:
                         match = Match.from_string(data)
                         if match in computer.actual_games:
                             computer.actual_games.remove(match)
+                            computer.nbr_game_done = computer.nbr_game_done + 1
                         self.result.append(match)
                         
                         

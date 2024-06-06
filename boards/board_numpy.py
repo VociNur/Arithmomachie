@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import json
 
@@ -65,7 +66,7 @@ def print_board(board):
 
 print_board(b)
 
-f = open("game.json", "w")
+f = open("./boards/game.json", "w")
 f.write(json.dumps(board.tolist()))
 f.close()
 ####################################################$$
@@ -87,7 +88,7 @@ board[11, 2] = (24 * 3, 3, 0)
 board[11, 6] = (24, 3, 1)
 board[10, 6] = (18, 3, 1)
 
-f = open("basics1.json", "w")
+f = open("./boards/basics1.json", "w")
 f.write(json.dumps(board.tolist()))
 f.close()
 
@@ -107,7 +108,7 @@ board[7, 6] = (8, 2, 1)
 board[12, 0] = (1, 1, 0)
 board[15, 3] = (2, 1, 1)
 
-f = open("basics2.json", "w")
+f = open("./boards/basics2.json", "w")
 f.write(json.dumps(board.tolist()))
 f.close()
 
@@ -131,7 +132,7 @@ board[j - 1, i + 1] = (1, 1, 0)
 board[j + 1, i - 1] = (1, 1, 0)
 board[j - 1, i - 1] = (1, 1, 0)
 
-f = open("basics3.json", "w")
+f = open("./boards/basics3.json", "w")
 f.write(json.dumps(board.tolist()))
 f.close()
 
@@ -178,28 +179,122 @@ for y in range(16):
             id_board[y][x] = nid
             nid+=1
 
-f = open("id_board.json", "w")
-f.write(json.dumps(id_board.tolist()))
-f.close()
+#f = open("./board/id_board.json", "w") à vérifier si c'est le bon
+#f.write(json.dumps(id_board.tolist()))
+#f.close()
 
 
-def save(board, name):
 
-    f = open(f"./boards/{name}.json", "w")
+
+def save(board, pre, name):
+    if not os.path.exists(f"./boards/{pre}/"):
+        os.mkdir(f"./boards/{pre}/")
+    
+    f = open(f"./boards/{pre}/{name}.json", "w")
     f.write(json.dumps(board.tolist()))
     f.close()
 
-
+pre = "move"
 board = np.full((16, 8), -1)
 board[8, 4] = 27
-save(board, "circle")
+save(board, pre, "circle")
 
 board = np.full((16, 8), -1)
 board[8, 4] = 34
-save(board, "triangle")
+save(board, pre, "triangle")
 
 board = np.full((16, 8), -1)
 board[8, 4] = 43
-save(board, "rectangle")
+save(board, pre, "rectangle")
+
+
+pre = "attack/meet"
+board = np.full((16, 8), -1)
+board[8, 4] = 32
+board[6, 4] = 12
+save(board, pre, "circle")
+
+board = np.full((16, 8), -1)
+board[10, 4] = 35
+board[6, 4] = 23
+save(board, pre, "triangle")
+
+
+pre = "attack/gallow"
+board = np.full((16, 8), -1)
+board[8, 4] = 25
+board[6, 4] = 6
+save(board, pre, "circle")
+
+board = np.full((16, 8), -1)
+board[10, 4] = 28
+board[6, 4] = 17
+#ya un fail là save(board, pre, "triangle")
+
+board = np.full((16, 8), -1)
+board[10, 4] = 28
+board[6, 4] = 17
+save(board, pre, "triangle")
+
+
+pre = "attack/ambush"
+board = np.full((16, 8), -1)
+board[8, 4] = 24
+board[7, 3] = 26
+board[6, 4] = 13
+save(board, pre, "plus")
+
+board = np.full((16, 8), -1)
+board[10, 4] = 41
+board[6, 2] = 40
+board[6, 4] = 21
+save(board, pre, "dif")
+
+board = np.full((16, 8), -1)
+board[8, 4] = 27
+board[7, 3] = 25
+board[6, 4] = 13
+save(board, pre, "mult")
+
+board = np.full((16, 8), -1)
+board[10, 4] = 28
+board[6, 2] = 35
+board[6, 4] = 23
+save(board, pre, "div")
+
+
+pre = "attack/assault"
+board = np.full((16, 8), -1)
+board[12, 1] = 47
+board[2, 4] = 2
+save(board, pre, "ass")
+
+
+
+pre = "attack/pro"
+board = np.full((16, 8), -1)
+board[10, 4] = 28
+board[6, 2] = 35
+board[6, 4] = 23
+save(board, pre, "ar")
+
+pre = "attack/pro"
+board = np.full((16, 8), -1)
+board[10, 4] = 28
+board[6, 2] = 35
+board[6, 4] = 23
+save(board, pre, "ge")
+
+pre = "attack/pro"
+board = np.full((16, 8), -1)
+board[10, 4] = 28
+board[6, 2] = 35
+board[6, 4] = 23
+save(board, pre, "ha")
+
+
+
+
+
 
 

@@ -1302,7 +1302,7 @@ class Game:
             if self.stop:
                 break      
             
-            coups =  self.get_game_available_moves()
+            coups = self.get_game_available_moves()
             if len(coups) == 0:
                 break
             coup = coups[random.randint(0, len(coups)-1)]
