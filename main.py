@@ -114,7 +114,7 @@ class Game:
                 y=self.locations[i][0] + y
                 x=self.locations[i][1] + x
                 
-        return (y/n, x/n)
+        return (y/max(n, 1), x/max(n, 1))
     def distance_center_to_isobary_center(self, player):
         mid_y, mid_x = (7.5, 3.5)
         y, x = self.isobarycenter(player)
@@ -129,7 +129,7 @@ class Game:
                 n=n+1
                 dy=(self.locations[i][0]-ey)**2 + dy
                 dx=(self.locations[i][1]-ex)**2 + dx
-        return (dy/n, dx/n)
+        return (dy/max(n, 1), dx/max(n, 1))
     
     def progress(self, player):
         id_pawns = BLACK_ID if player else WHITE_ID
@@ -1319,7 +1319,7 @@ class Game:
         print(f'Temps d\'exécution : {self.time_exe:.3}s')
         if SHOW_PRINT:
             print("Coups joués ", self.turn)
-            print("nbr_coups", nbr_coups / self.turn)
+            print("nbr_coups", nbr_coups / max(1, self.turn))
         if view:
             self.show_game()
 
@@ -1377,7 +1377,7 @@ def launch_games(number, must_be_completed = False):
             while not game.is_finished:
                 game = Game(auto=True)
         c+=game.time_exe
-    c/=number
+    c/=max(1, number)
     print(f"FINAL TIME: {c:.3}s")
 
 if __name__ == "__main__":
