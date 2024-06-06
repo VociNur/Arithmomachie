@@ -82,8 +82,8 @@ class AI:
                     self.evaluations[i].get_genomes_from(avg)
                 #self.evaluations[i].mutate()
                 self.evaluations[i].round()
-        self.save_actual_gen(gen+1, list(self.evaluations.values()))
-        time.sleep(1)
+            self.save_actual_gen(gen+1, list(self.evaluations.values()))
+            time.sleep(1)
         print("FINITO")
 
     def get_matches_with_result(self, gen):
