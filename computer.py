@@ -24,7 +24,8 @@ class Computer:
     def add_match(self, match:Match):
         time.sleep(1)
         self.actual_games.append(match)
-        self.conn.send(match.to_packet())
+        if self.is_connected:
+            self.conn.send(match.to_packet())
         print(f"Match {match.to_string()} sent to {self.addr}")
 
     def print_match(self):

@@ -85,6 +85,7 @@ class MyServer:
         if len(self.match_to_play)==0:
             return
         match = self.match_to_play[0]
+        match.time_start = time()
         self.match_to_play.remove(match)
         c.add_match(match)
 

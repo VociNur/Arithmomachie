@@ -16,11 +16,11 @@ class Client:
 
     def fake_match(self, match: Match):
         print("Doing", match.to_string())
-        time.sleep(0.3)
+        time.sleep(10)
         result = 1
         match.result = result
 
-        self.client_socket.send(match.to_packet())
+        return match
         
     def do_match(self, match : Match):
         turns = 4000
@@ -38,11 +38,11 @@ class Client:
             points, moves, move = Minmax().min_max(game, depth, eval_fct)
             game.play_move(move)
         match.result = game.winner
-        return 
+        return match
 
     def play_match_and_send_result(self, match: Match):
         
-        self.do_match(match)
+        match = self.do_match(match)
         if self.is_connected:
             self.client_socket.send(match.to_packet())
         pass
@@ -158,7 +158,7 @@ def run_client():
 if __name__ == '__main__':
     processes = []
 
-    for i in range(multiprocessing.cpu_count()):
+    for i in range(1):
         p = multiprocessing.Process(target=run_client)
         p.start()
         processes.append(p)

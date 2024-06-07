@@ -4,6 +4,7 @@
 from datetime import datetime
 import os
 import time
+from enums.TypeMessage import TypeMessage
 from typing import Dict, List
 from evaluation import Evaluation
 from match import Match
@@ -189,13 +190,30 @@ class AI:
             print(f"{len(self.server.get_current_matches())}/{self.server.nbr_parties} current game")
             if len(self.server.match_to_play) > 0:
                 for c in self.server.connected_computers:
+                    
                     if not c.is_connected:
                         self.server.match_to_play += c.actual_games
                         if c in self.server.connected_computers:
                             self.server.connected_computers.remove(c)
+                    
+                    for g in c.actual_games:
+                        if time.time() - g.date_creation > 3600:
+                            
+                            c.conn.send(TypeMessage.encode_package(TypeMessage.END_CONNECTION, ""))
+                            c.is_connected = False
+                            time.sleep(1)
+                            print("Stopping connection by match undone", g.to_string())
+
+                    if not c.is_connected:
+                        self.server.match_to_play += c.actual_games
+                        if c in self.server.connected_computers:
+                            self.server.connected_computers.remove(c)
+                    
+
                     #for i in range(int(max(2, int(c.cores)/6) - len(c.actual_games))):
                     for i in range(1-len(c.actual_games)): # pas d'autres choix pour l'instant, seul le proc est en PLS
                         try:
+                            
                             self.server.give_match_to(c)
                         except Exception as e:
                             print(e.with_traceback())

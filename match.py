@@ -1,6 +1,8 @@
 import time
 from evaluation import Evaluation
 from enums.TypeMessage import TypeMessage
+from main import Game
+from minmax import Minmax
 
 class Match:
     def __init__(self, p1:int, ev1:Evaluation, p2:int, ev2:Evaluation, result:int = -1, date_creation = None) -> None:
@@ -12,6 +14,7 @@ class Match:
         self.p2 = p2
         self.ev2 = ev2
         self.result = result # 0 pour le joueur p1, 1 pour le joueur p2, -1 si pas défini
+        self.time_start = -1
 
 
 
@@ -80,9 +83,26 @@ def test_2():
     
     print(m2)
 
+
+def do_match(match : Match):
+        turns = 4000
+        depth = 1
+
+        game = Game()
+        time.sleep(1)
+        for i in range(turns):
+            coups = game.get_game_available_moves()
+            if len(coups) == 0 or game.winner != -1:
+                break
+            eval_fct = match.ev1.evaluate if i % 2 == 0 else match.ev2.evaluate
+            points, moves, move = Minmax().min_max(game, depth, eval_fct)
+            game.play_move(move)
+        game.show_game()
 if __name__ == "__main__":
     #ai1 = Evaluation(1, 0, 0, 0, 0, 0)
     #ai2 = Evaluation(-1, 0, 0, 0, 0, 0)
     #win, game = ai1.battle(ai2)
     #game.show_game()
-    test_2()
+    m = Match.from_string("2'0.0/1.0/0.0/0.0/0.0/0.0'4'0.0/0.5/0.0/0.5/0.0/0.0'0'1717688814.7265458")
+    do_match(m)
+    

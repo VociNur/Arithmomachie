@@ -1,7 +1,5 @@
 from enum import Enum
 
-from more_itertools import strip
-
 
 class TypeMessage(Enum):
 
