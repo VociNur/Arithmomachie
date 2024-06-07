@@ -158,7 +158,7 @@ def run_client():
 if __name__ == '__main__':
     processes = []
 
-    for i in range(1):
+    for i in range(multiprocessing.cpu_count()):
         p = multiprocessing.Process(target=run_client)
         p.start()
         processes.append(p)
