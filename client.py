@@ -24,7 +24,7 @@ class Client:
         return match
         
     def do_match(self, match : Match):
-        turns = 4000
+        turns = 1000
         depth = 1
 
         game = Game()
@@ -42,7 +42,7 @@ class Client:
         return match
 
     def play_match_and_send_result(self, match: Match):
-        if platform.uname().node == "jules-ThinkPad-X1-Yoga-Gen-7" or platform.uname().node == "DESKTOP-FSB75IP":
+        if platform.uname().node == "jules-ThinkPad-X1-Yoga-Gen-7":
             match = self.fake_match(match)
         else:
             match = self.do_match(match)
@@ -56,7 +56,7 @@ class Client:
         host = "109.215.159.203"  # as both code is running on same pc
 
         #local
-        if platform.uname().node == "jules-ThinkPad-X1-Yoga-Gen-7":
+        if platform.uname().node == "jules-ThinkPad-X1-Yoga-Gen-7"  or platform.uname().node == "DESKTOP-FSB75IP":
                 host = socket.gethostname()
 
         #l
