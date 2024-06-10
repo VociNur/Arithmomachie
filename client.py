@@ -8,6 +8,7 @@ from main import Game
 from match import Match
 from minmax import Minmax
 import platform
+import os
 
 class Client:
 
@@ -86,14 +87,12 @@ class Client:
         get_os = False
         get_platform = False
         try:
-            import os
             cores_number = str(os.cpu_count())
             get_os = True
         except:
             pass
 
         try:
-            import platform
             system_info = platform.uname()
             system = system_info.system
             node_name = system_info.node
