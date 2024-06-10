@@ -3,6 +3,7 @@
 
 from datetime import datetime
 import os
+import platform
 import time
 from enums.TypeMessage import TypeMessage
 from typing import Dict, List
@@ -27,7 +28,6 @@ class AI:
 
 
     def __init__(self) -> None:
-        
         self.evaluations : Dict[int, Evaluation] = {}
         #self.init_gen_0() #init
         #return
@@ -222,8 +222,10 @@ class AI:
                     #print("type:", type(self.server.registered_result))
                     self.server.registered_result.append(m)
                     self.save_actual_match(gen, m)
-
-            time.sleep(0.3)
+            if platform.uname().node == "jules-ThinkPad-X1-Yoga-Gen-7":
+                time.sleep(0.3)
+            else:
+                time.sleep(10)
 
         print("Generation effectue")
 

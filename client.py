@@ -7,6 +7,7 @@ from enums.TypeMessage import TypeMessage
 from main import Game
 from match import Match
 from minmax import Minmax
+import platform
 
 class Client:
 
@@ -41,8 +42,11 @@ class Client:
         return match
 
     def play_match_and_send_result(self, match: Match):
-        
-        match = self.fake_match(match)
+        if platform.uname().node == "jules-ThinkPad-X1-Yoga-Gen-7":
+            match = self.fake_match(match)
+        else:
+            match = self.do_match(match)
+            
         if self.is_connected:
             self.client_socket.send(match.to_packet())
         pass
@@ -52,7 +56,8 @@ class Client:
         host = "109.215.159.203"  # as both code is running on same pc
 
         #local
-        host = socket.gethostname()
+        if platform.uname().node == "jules-ThinkPad-X1-Yoga-Gen-7":
+                host = socket.gethostname()
 
         #l
         #host = "10.0.2.15"
