@@ -42,7 +42,7 @@ class AI:
     
     def do_AI(self):
         
-        for _ in range(5):
+        for _ in range(500):
             gen, pop = self.get_population()
             self.evaluations = pop
             print(f"Doing gen {gen}")
@@ -197,7 +197,7 @@ class AI:
                             self.server.connected_computers.remove(c)
                     
                     for g in c.actual_games:
-                        if time.time() - g.date_creation > 3600:
+                        if time.time() - g.time_start > 3600:
                             
                             c.conn.send(TypeMessage.encode_package(TypeMessage.END_CONNECTION, ""))
                             c.is_connected = False
@@ -223,7 +223,7 @@ class AI:
                     self.server.registered_result.append(m)
                     self.save_actual_match(gen, m)
 
-            time.sleep(10)
+            time.sleep(0.3)
 
         print("Generation effectue")
 
