@@ -42,11 +42,11 @@ class Client:
         return match
 
     def play_match_and_send_result(self, match: Match):
-        if platform.uname().node == "jules-ThinkPad-X1-Yoga-Gen-7":
+        if platform.uname().node == "jules-ThinkPad-X1-Yoga-Gen-7" or platform.uname().node == "DESKTOP-FSB75IP":
             match = self.fake_match(match)
         else:
             match = self.do_match(match)
-            
+
         if self.is_connected:
             self.client_socket.send(match.to_packet())
         pass
