@@ -10,6 +10,7 @@ from minmax import Minmax
 
 class Evaluation:
     def __init__(self, pieces_rate_coef, y_dispersion_coef, x_dispersion_coef, y_center_coef, x_center_coef, progress_coef) -> None:
+        
         self.pieces_rate_coef = pieces_rate_coef
         self.y_dispersion_coef = y_dispersion_coef
         self.x_dispersion_coef = x_dispersion_coef
@@ -49,14 +50,55 @@ class Evaluation:
         print(self.to_string())
 
     def mutate(self):
-        mini = 95
-        maxi = 105
-        self.pieces_rate_coef = self.pieces_rate_coef * randint(mini, maxi) / 100
-        self.y_dispersion_coef = self.y_dispersion_coef * randint(mini, maxi) / 100
-        self.x_dispersion_coef = self.x_dispersion_coef * randint(mini, maxi) / 100
-        self.y_center_coef = self.y_center_coef * randint(mini, maxi) / 100
-        self.x_center_coef = self.x_center_coef * randint(mini, maxi) / 100
-        self.progress_coef = self.progress_coef * randint(mini, maxi) / 100
+        mini = -100
+        maxi = 100
+        self.pieces_rate_coef = self.pieces_rate_coef + randint(mini, maxi) / 1000
+        self.y_dispersion_coef = self.y_dispersion_coef + randint(mini, maxi) / 1000
+        self.x_dispersion_coef = self.x_dispersion_coef + randint(mini, maxi) / 1000
+        self.y_center_coef = self.y_center_coef + randint(mini, maxi) / 1000
+        self.x_center_coef = self.x_center_coef + randint(mini, maxi) / 1000
+        self.progress_coef = self.progress_coef + randint(mini, maxi) / 1000
+
+
+        limit = 1000
+        if self.pieces_rate_coef > limit:
+            self.pieces_rate_coef = limit
+            print("Range !!!")
+        if self.pieces_rate_coef < -limit:
+            self.pieces_rate_coef = -limit
+            print("Range !!!")
+        if self.y_dispersion_coef > limit:
+            self.y_dispersion_coef = limit
+            print("Range !!!")
+        if self.y_dispersion_coef < -limit:
+            self.y_dispersion_coef = -limit
+            print("Range !!!")
+        if self.x_dispersion_coef > limit:
+            self.x_dispersion_coef = limit
+            print("Range !!!")
+        if self.x_dispersion_coef < -limit:
+            self.x_dispersion_coef = -limit
+            print("Range !!!")
+        if self.y_center_coef > limit:
+            self.y_center_coef = limit
+            print("Range !!!")
+        if self.y_center_coef < -limit:
+            self.y_center_coef = -limit
+            print("Range !!!")
+        if self.x_center_coef > limit:
+            self.x_center_coef = limit
+            print("Range !!!")
+        if self.x_center_coef < -limit:
+            self.x_center_coef = -limit
+            print("Range !!!")
+        if self.progress_coef > limit:
+            self.progress_coef = limit
+            print("Range !!!")
+        if self.progress_coef < -limit:
+            self.progress_coef = -limit
+            print("Range !!!")
+        
+
 
     def round(self): # round les flottants
         nbr = 3
@@ -82,6 +124,10 @@ class Evaluation:
         progress_coef = mean([eval.progress_coef for eval in evs])
         return Evaluation(pieces_rate_coef, y_dispersion_coef, x_dispersion_coef, y_center_coef, x_center_coef, progress_coef)
     
+    @classmethod
+    def from_parent(self, ev1, ev2):
+        return Evaluation.from_average([ev1, ev2])
+
 
     @classmethod
     def from_string(self, s:str):

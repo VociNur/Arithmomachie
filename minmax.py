@@ -125,36 +125,6 @@ class Minmax():
                 best_moves_to_go_sub_game = moves_to_go_sub_game
         return best_sub_point, best_moves_to_go_sub_game    
 
-
-#implémente le premier max avec des l'asynchrome
-    def minmax_max(self, game:Game, root_player_turn, eval_function, profondeur, alpha, beta):
-        if profondeur == 0 :
-            eval = self.evaluate(game, eval_function, root_player_turn)
-            return (eval, []) #un max ne modifie que beta
-        moves = game.get_game_available_moves()
-        if moves == []:
-            eval = self.evaluate(game, eval_function, root_player_turn)
-            return (eval, [])
-
-        best_sub_point, best_moves_to_go_sub_game = None, None
-        for index in range(len(moves)):
-            sub_game = deepcopy(game)
-            sub_game.play_move(moves[index])
-            sub_point, moves_to_go_sub_game = self.minmax_min(sub_game, root_player_turn, eval_function, profondeur-1, alpha, beta)
-
-            if sub_point >= beta:
-                return (math.inf, [])
-
-            moves_to_go_sub_game.append(moves[index])
-            #print(sub_point, best_sub_point)
-            if index == 0 or best_sub_point < sub_point:
-                best_sub_point = sub_point
-                alpha = max(alpha, sub_point) #vient d'un min donc alpha est modifié
-                #on pourrait modifier le alpha avant
-                best_moves_to_go_sub_game = moves_to_go_sub_game
-        return best_sub_point, best_moves_to_go_sub_game    
-
-
     
     def min_max(self, game:Game, profondeur, eval_function = None):
         if eval_function == None:
@@ -168,7 +138,7 @@ class Minmax():
 if __name__ == "__main__":
     minmax = Minmax()
     game = Game()
-    for i in range(200):
+    for i in range(20):
 
         _,_, bm = minmax.min_max(game, 1, eval_function=None)
         game.play_move(bm)

@@ -1,4 +1,5 @@
 import multiprocessing
+from random import randint
 import socket
 from threading import Thread
 import time
@@ -19,7 +20,7 @@ class Client:
     def fake_match(self, match: Match):
         print("Doing", match.to_string())
         time.sleep(0.3)
-        result = 1
+        result = randint(-1, 1)
         match.result = result
 
         return match

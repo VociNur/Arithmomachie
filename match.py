@@ -98,11 +98,27 @@ def do_match(match : Match):
             points, moves, move = Minmax().min_max(game, depth, eval_fct)
             game.play_move(move)
         game.show_game()
+
+def eval_vs_random(match : Match):
+        turns = 4000
+        depth = 1
+
+        game = Game()
+        time.sleep(1)
+        for i in range(turns):
+            coups = game.get_game_available_moves()
+            if len(coups) == 0 or game.winner != -1:
+                break
+            eval_fct = match.ev1.evaluate if i % 2 == 0 else match.ev2.evaluate
+            points, moves, move = Minmax().min_max(game, depth, eval_fct)
+            game.play_move(move)
+        game.show_game()
+
 if __name__ == "__main__":
     #ai1 = Evaluation(1, 0, 0, 0, 0, 0)
     #ai2 = Evaluation(-1, 0, 0, 0, 0, 0)
     #win, game = ai1.battle(ai2)
     #game.show_game()
-    m = Match.from_string("5'0.042/0.666/0.0/0.062/0.062/0.0'6'0.042/0.666/0.0/0.062/0.0/0.062'-1'1718042888.7811284")
+    m = Match.from_string("")
     do_match(m)
     

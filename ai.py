@@ -4,7 +4,10 @@
 from datetime import datetime
 import os
 import platform
+from random import randint
 import time
+
+import numpy as np
 from enums.TypeMessage import TypeMessage
 from typing import Dict, List
 from evaluation import Evaluation
@@ -15,17 +18,19 @@ from server import MyServer
 class AI:
 
     def init_gen_0(self):
-
-        self.evaluations[0] = Evaluation(0, 0, 0, 0, 0, 0)
-        self.evaluations[1] = Evaluation(1, 0, 0, 0, 0, 0)
-        self.evaluations[2] = Evaluation(0, 1, 0, 0, 0, 0)
-        self.evaluations[3] = Evaluation(0, 0, 1, 0, 0, 0)
-        self.evaluations[4] = Evaluation(0, 0, 0, 1, 0, 0)
-        self.evaluations[5] = Evaluation(0, 0, 0, 0, 1, 0)
-        self.evaluations[6] = Evaluation(0, 0, 0, 0, 0, 1)
-        self.evaluations[7] = Evaluation(1, 1, 1, 1, 1, 1)
+        self.evaluations[0] = Evaluation(10, 0, 0, 0, 0, 0)
+        self.evaluations[1] = Evaluation(0, 10, 0, 0, 0, 0)
+        self.evaluations[2] = Evaluation(0, 0, 10, 0, 0, 0)
+        self.evaluations[3] = Evaluation(0, 0, 0, 10, 0, 0)
+        self.evaluations[4] = Evaluation(0, 0, 0, 0, 10, 0)
+        self.evaluations[5] = Evaluation(0, 0, 0, 0, 0, 10)
+        self.evaluations[6] = Evaluation(-10, 0, 0, 0, 0, 0)
+        self.evaluations[7] = Evaluation(0, -10, 0, 0, 0, 0)
+        self.evaluations[8] = Evaluation(0, 0, -10, 0, 0, 0)
+        self.evaluations[9] = Evaluation(0, 0, 0, -10, 0, 0)
+        self.evaluations[10] = Evaluation(0, 0, 0, 0, -10, 0)
+        self.evaluations[11] = Evaluation(0, 0, 0, 0, 0, -10)
         self.save_actual_gen(0, list(self.evaluations.values()))
-
 
     def __init__(self) -> None:
         self.evaluations : Dict[int, Evaluation] = {}
@@ -43,8 +48,11 @@ class AI:
     def do_AI(self):
         
         for _ in range(500):
+            #Récupération
             gen, pop = self.get_population()
             self.evaluations = pop
+
+            #Attente des parties pour sélection
             print(f"Doing gen {gen}")
             print(f"génération {gen}")
             print(self.evaluations)
@@ -53,6 +61,7 @@ class AI:
             if not self.server.running:
                 return
             
+            #Sélection
             points = {}
             for i in range(self.get_population_count()):
                 points[i] = 0
@@ -69,19 +78,35 @@ class AI:
                 if m.result != -1:
                     raise Exception(f"Match  with result {m.result} !")
             print(points)
-            m = max(points.values())
+            m = np.mean(list(points.values()))
+            if m == -1:
+                print("all neg")
+                input("Continue ?")
+
             bests = []
             for key in points.keys():
-                if points[key] == m:
-                    bests.append(key)
+                if points[key] > max(0, m):
+                    bests.append(self.evaluations[key])
+            
+            self.evaluations = {}
+            i = 0
+            for b in bests:
+                #print(i, b)
+                self.evaluations[i] = b
+                i = i + 1
 
-            print(m, bests)
-            avg = Evaluation.from_average([self.evaluations[i] for i in bests])
-            print(avg)
+
+            #Reproduction
+            nbr_pere = self.get_population_count()
+            max_pop = 12
+            for i in range(max_pop-nbr_pere):
+                a = randint(0, nbr_pere-1)
+                b = randint(0, nbr_pere-1)
+                self.evaluations[i+nbr_pere] = Evaluation.from_parent(self.evaluations[a], self.evaluations[b])
+
+            #Mutation et arrondi des flottants
             for i in range(self.get_population_count()):
-                if not i in bests:
-                    self.evaluations[i].get_genomes_from(avg)
-                #self.evaluations[i].mutate()
+                self.evaluations[i].mutate()
                 self.evaluations[i].round()
             self.save_actual_gen(gen+1, list(self.evaluations.values()))
             time.sleep(1)

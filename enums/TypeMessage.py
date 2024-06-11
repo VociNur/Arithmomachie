@@ -4,7 +4,7 @@ from enum import Enum
 class TypeMessage(Enum):
 
     CONNECTION = "CONNECT   ", 100
-    MATCH = "MATCH     ", 120
+    MATCH = "MATCH     ", 200
     #Grosso modo
     #evaluation: 6 flottants de 3 décimals donc 5 chiffes + séparation : total 36
     # match = 2 evaluations + result + imes
