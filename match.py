@@ -85,8 +85,8 @@ def test_2():
 
 
 def do_match(match : Match):
-        turns = 4000
-        depth = 1
+        turns = 1000
+        depth = 2
 
         game = Game()
         time.sleep(1)
@@ -100,8 +100,8 @@ def do_match(match : Match):
         game.show_game()
 
 def eval_vs_random(match : Match):
-        turns = 4000
-        depth = 1
+        turns = 1000
+        depth = 2
 
         game = Game()
         time.sleep(1)
@@ -119,6 +119,6 @@ if __name__ == "__main__":
     #ai2 = Evaluation(-1, 0, 0, 0, 0, 0)
     #win, game = ai1.battle(ai2)
     #game.show_game()
-    m = Match.from_string("")
+    m = Match.from_string("1'-0.023/-0.146/-0.154/-0.885/-0.259/-9.764'7'0.023/-0.047/-0.023/-0.888/-0.32/-9.592'0'1718186175.529534")
     do_match(m)
     

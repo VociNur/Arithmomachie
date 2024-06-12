@@ -65,8 +65,12 @@ class Minmax():
         
         return self.dif(rates, 0)*1000 + self.dif(progress, 0) #le second paramètre de dif servait avant
 
-    def evaluate(self, game, eval_function, player_turn):
+    def evaluate(self, game:Game, eval_function, player_turn):
         multiplier = 1 if player_turn == 0 else -1
+        if game.winner != -1:
+            winner = 1 if player_turn == game.winner else -1
+            print("Detects win")
+            return winner * 100000000
         return eval_function(game) * multiplier
     
     #min max    

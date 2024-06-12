@@ -19,6 +19,7 @@ class Evaluation:
         self.progress_coef = progress_coef
 
     def evaluate(self, game: Game):
+        
         pieces_rate_delta, y_dispersion_delta, x_dispersion_delta, y_center_delta, x_center_delta, progress_delta = game.get_delta_stats()
         return (self.pieces_rate_coef * pieces_rate_delta 
                 + self.y_dispersion_coef * y_dispersion_delta

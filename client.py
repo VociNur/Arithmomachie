@@ -27,7 +27,7 @@ class Client:
         
     def do_match(self, match : Match):
         turns = 1000
-        depth = 1
+        depth = 2
 
         game = Game()
         time.sleep(1)
@@ -58,8 +58,8 @@ class Client:
         host = "109.215.159.203"  # as both code is running on same pc
 
         #local
-        if platform.uname().node == "jules-ThinkPad-X1-Yoga-Gen-7"  or platform.uname().node == "DESKTOP-FSB75IP":
-                host = socket.gethostname()
+        #if platform.uname().node == "jules-ThinkPad-X1-Yoga-Gen-7"  or platform.uname().node == "DESKTOP-FSB75IP":
+        #        host = socket.gethostname()
 
         #l
         #host = "10.0.2.15"
